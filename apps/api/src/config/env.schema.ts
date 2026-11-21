@@ -23,6 +23,8 @@ export const envSchema = z.object({
   /** Express "trust proxy" setting; set to the number of proxies in front of the API (e.g. 1). */
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  /** Folder for uploaded files (local storage driver). */
+  STORAGE_DIR: z.string().default('./storage'),
 
   // --- Authentication ---------------------------------------------------------
   /** HMAC secret for access tokens. At least 32 characters; generate with `openssl rand -base64 48`. */

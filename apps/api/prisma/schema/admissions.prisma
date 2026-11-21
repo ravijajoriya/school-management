@@ -1,0 +1,70 @@
+// Phase 2 — migration 004_admission_enquiries
+// `classes` is listed under Phase 3 in the developer flow; it is created here because
+// admission_enquiries.class_sought_id references it (decision recorded in ADR 0003).
+
+/// Class/grade catalogue from Nursery through Class 12.
+model Class {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name       String   @unique @db.VarChar(50)
+  /// Sort order. SQL: CHECK (level_order >= 0)
+  levelOrder Int      @unique @map("level_order") @db.SmallInt
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  enquiries AdmissionEnquiry[]
+
+  @@map("classes")
+}
+
+/// Admission enquiries from the public form or entered by staff.
+model AdmissionEnquiry {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. ENQ-2026-00042, from sequence admission_enquiry_number_seq
+  referenceNumber    String    @unique @map("reference_number") @db.VarChar(30)
+  studentName        String    @map("student_name") @db.VarChar(160)
+  classSoughtId      String    @map("class_sought_id") @db.Uuid
+  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
+  guardianName       String    @map("guardian_name") @db.VarChar(160)
+  phone              String    @db.VarChar(20)
+  email              String?   @db.VarChar(255)
+  message            String?
+  /// SQL: CHECK (source IN ('WEBSITE','WALK_IN','PHONE','REFERRAL','OTHER'))
+  source             String    @default("WEBSITE") @db.VarChar(50)
+  /// SQL: CHECK (status IN (...ENQUIRY_STATUSES))
+  status             String    @default("NEW") @db.VarChar(30)
+  assignedTo         String?   @map("assigned_to") @db.Uuid
+  submittedAt        DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  /// FK to students.id is added in Phase 3 when the students table exists.
+  convertedStudentId String?   @map("converted_student_id") @db.Uuid
+  createdIp          String?   @map("created_ip") @db.Inet
+  /// Added: last change time.
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  classSought Class             @relation(fields: [classSoughtId], references: [id], onDelete: Restrict)
+  assignee    User?             @relation("EnquiryAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
+  followUps   EnquiryFollowUp[]
+
+  @@index([status, submittedAt])
+  @@index([assignedTo])
+  @@index([classSoughtId])
+  @@index([phone])
+  @@map("admission_enquiries")
+}
+
+/// Internal follow-up history for enquiries.
+model EnquiryFollowUp {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  enquiryId      String    @map("enquiry_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  followUpAt     DateTime  @default(now()) @map("follow_up_at") @db.Timestamptz(6)
+  outcome        String?   @db.VarChar(60)
+  notes          String?
+  nextFollowUpAt DateTime? @map("next_follow_up_at") @db.Timestamptz(6)
+
+  enquiry AdmissionEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  user    User             @relation("EnquiryFollowUpAuthor", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([enquiryId, followUpAt])
+  @@index([nextFollowUpAt])
+  @@map("enquiry_follow_ups")
+}

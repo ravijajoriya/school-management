@@ -28,7 +28,7 @@ export async function createTestApp(): Promise<TestContext> {
 }
 
 /**
- * Empties every Phase 1 table and re-seeds roles, permissions, one admin and one teacher.
+ * Empties every table and re-seeds roles, permissions, classes, website pages, one admin and one teacher.
  * audit_logs is append-only via triggers, so its user triggers are disabled just for the reset.
  */
 export async function resetDatabase(
@@ -38,7 +38,7 @@ export async function resetDatabase(
   await prisma.$transaction([
     prisma.$executeRawUnsafe('ALTER TABLE "audit_logs" DISABLE TRIGGER USER'),
     prisma.$executeRawUnsafe(
-      'TRUNCATE "audit_logs", "refresh_tokens", "user_roles", "role_permissions", "users", "roles", "permissions" CASCADE',
+      'TRUNCATE "audit_logs", "refresh_tokens", "user_roles", "role_permissions", "enquiry_follow_ups", "admission_enquiries", "classes", "contact_messages", "website_pages", "media_assets", "events", "internal_notices", "announcements", "users", "roles", "permissions" CASCADE',
     ),
     prisma.$executeRawUnsafe('ALTER TABLE "audit_logs" ENABLE TRIGGER USER'),
   ]);

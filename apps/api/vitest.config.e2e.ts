@@ -1,4 +1,6 @@
 import { config as loadEnv } from 'dotenv';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -36,6 +38,7 @@ export default defineConfig({
       REFRESH_TOKEN_TTL_DAYS: '7',
       COOKIE_SECURE: 'false',
       LOG_LEVEL: 'fatal',
+      STORAGE_DIR: join(tmpdir(), 'school-management-e2e-storage'),
     },
   },
 });

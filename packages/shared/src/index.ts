@@ -5,3 +5,7 @@ export * from './schemas/auth.js';
 export * from './schemas/users.js';
 export * from './schemas/roles.js';
 export * from './schemas/audit.js';
+export * from './schemas/website.js';
+export * from './schemas/cms.js';
+export * from './schemas/admissions.js';
+export * from './schemas/contact.js';
