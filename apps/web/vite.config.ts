@@ -12,12 +12,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: Number(process.env.WEB_PORT ?? 5173),
     // In development the browser calls /api/* on the Vite server, which forwards to NestJS.
     // Same-origin requests keep cookie-based refresh tokens simple.
+    // Browser tests point this at a separate test API via VITE_API_PROXY_TARGET.
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3000',
         changeOrigin: true,
       },
     },

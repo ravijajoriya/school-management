@@ -42,11 +42,21 @@ the user must change it at first sign-in. Forgot a password? An admin resets it 
 
 ## Tests
 
-- `pnpm test` — unit tests.
-- `pnpm test:e2e` — API end-to-end tests against a separate database. It uses `TEST_DATABASE_URL`,
-  or your `DATABASE_URL` with `_test` appended to the database name (create it once:
-  `createdb school_management_test`). Migrations are applied automatically; the tests refuse to run
-  against a database whose name doesn't end in `_test`.
+| Command                              | What it runs                                                   |
+| ------------------------------------ | -------------------------------------------------------------- |
+| `pnpm test`                          | API unit tests + web component tests (Vitest, jsdom)           |
+| `pnpm test:e2e`                      | API end-to-end tests, then browser tests (one after the other) |
+| `pnpm --filter @school/api test:e2e` | API end-to-end tests only (Supertest against a real database)  |
+| `pnpm --filter @school/web test:e2e` | Browser tests only (Playwright + Chromium)                     |
+
+End-to-end tests use a **separate database**: `TEST_DATABASE_URL`, or your `DATABASE_URL` with `_test`
+appended to the database name (create it once: `createdb school_management_test`). Migrations are
+applied automatically, and the tests refuse to run against a database whose name doesn't end in
+`_test`. Browser tests start their own API (port 3100) and web server (port 5174), so they can run
+while `pnpm dev` is running. First time only: `pnpm --filter @school/web exec playwright install chromium`.
+
+**CI** (`.github/workflows/ci.yml`) runs all of the above on every pull request and on `main`,
+against PostgreSQL 18.
 
 ## Docs
 
