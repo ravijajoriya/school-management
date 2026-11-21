@@ -19,8 +19,11 @@ model AcademicYear {
   classSubjects      ClassSubject[]
   teacherAssignments TeacherAssignment[]
   enrolments         StudentEnrolment[]
+  timetables         Timetable[]
   feeStructures      FeeStructure[]
   feeDues            StudentFeeDue[]
+  examinations       Examination[]
+  gradingScales      GradingScale[]
 
   @@map("academic_years")
 }
@@ -59,6 +62,7 @@ model Section {
 
   teacherAssignments TeacherAssignment[]
   enrolments         StudentEnrolment[]
+  timetables         Timetable[]
 
   @@unique([academicYearId, classId, name])
   /// Targets for composite foreign keys that keep year/class consistent in child tables.
@@ -83,6 +87,8 @@ model ClassSubject {
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
 
   teacherAssignments TeacherAssignment[]
+  examSubjects       ExamSubject[]
+  timetableEntries   TimetableEntry[]
 
   @@unique([academicYearId, classId, subjectId])
   @@unique([id, academicYearId])

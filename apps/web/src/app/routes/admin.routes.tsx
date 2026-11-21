@@ -30,6 +30,25 @@ const ADMIN_NAV: PortalNavItem[] = [
     section: 'People',
   },
   {
+    to: '/admin/exams',
+    label: 'Examinations',
+    end: true,
+    permissions: [PERMISSIONS.EXAMS_READ],
+    section: 'Exams & Timetable',
+  },
+  {
+    to: '/admin/exams/grading',
+    label: 'Grading Scales',
+    permissions: [PERMISSIONS.EXAMS_READ],
+    section: 'Exams & Timetable',
+  },
+  {
+    to: '/admin/timetables',
+    label: 'Timetables',
+    permissions: [PERMISSIONS.TIMETABLE_READ],
+    section: 'Exams & Timetable',
+  },
+  {
     to: '/admin/fees/collect',
     label: 'Collect Fees',
     permissions: [PERMISSIONS.FEES_COLLECT],
@@ -178,6 +197,9 @@ const staff = () => import('@/features/admin/staff/StaffPages');
 const students = () => import('@/features/admin/students/StudentPages');
 const attendance = () => import('@/features/attendance/pages/AdminAttendancePages');
 const feeSetup = () => import('@/features/fees/pages/FeeSetupPages');
+const exams = () => import('@/features/exams/pages/ExamAdminPages');
+const results = () => import('@/features/exams/pages/ResultsPages');
+const timetables = () => import('@/features/timetable/pages/TimetablePages');
 const feeLedger = () => import('@/features/fees/pages/FeeLedgerPages');
 const feeReports = () => import('@/features/fees/pages/FeeReportPages');
 
@@ -232,6 +254,33 @@ export const adminRoutes: RouteObject = {
         })),
         guarded('leave', PERMISSIONS.LEAVE_READ, async () => ({
           Component: (await import('@/features/leave/LeavePages')).LeaveRequestsPage,
+        })),
+        guarded('exams', PERMISSIONS.EXAMS_READ, async () => ({
+          Component: (await exams()).ExamsPage,
+        })),
+        guarded('exams/grading', PERMISSIONS.EXAMS_READ, async () => ({
+          Component: (await exams()).GradingScalesPage,
+        })),
+        guarded('exams/:id', PERMISSIONS.EXAMS_READ, async () => ({
+          Component: (await exams()).ExamDetailPage,
+        })),
+        guarded('exams/:id/marks', PERMISSIONS.EXAMS_READ, async () => ({
+          Component: (await exams()).ExamMarksPage,
+        })),
+        guarded('exams/:id/results', PERMISSIONS.EXAMS_READ, async () => ({
+          Component: (await results()).SectionResultsPage,
+        })),
+        guarded('exams/:id/report-cards/:enrolmentId', PERMISSIONS.EXAMS_READ, async () => ({
+          Component: (await results()).ReportCardPage,
+        })),
+        guarded('timetables', PERMISSIONS.TIMETABLE_READ, async () => ({
+          Component: (await timetables()).TimetablesPage,
+        })),
+        guarded('timetables/teachers', PERMISSIONS.TIMETABLE_READ, async () => ({
+          Component: (await timetables()).TeacherTimetablesPage,
+        })),
+        guarded('timetables/:id', PERMISSIONS.TIMETABLE_READ, async () => ({
+          Component: (await timetables()).TimetableEditorPage,
         })),
         guarded('fees/collect', PERMISSIONS.FEES_COLLECT, async () => ({
           Component: (await feeLedger()).CollectFeesPage,

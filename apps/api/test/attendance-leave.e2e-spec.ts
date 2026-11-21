@@ -131,7 +131,11 @@ describe('Attendance & leave (e2e)', () => {
 
   it('gives teachers the self-service permissions without opening the admin portal', async () => {
     const me = (await login(ctx.http, TEACHER.email, TEACHER.password)).body.user;
-    expect([...me.permissions].sort()).toEqual(['attendance.mark_assigned', 'leave.apply']);
+    expect([...me.permissions].sort()).toEqual([
+      'attendance.mark_assigned',
+      'leave.apply',
+      'marks.enter_assigned',
+    ]);
   });
 
   describe('marking', () => {

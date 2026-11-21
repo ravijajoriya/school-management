@@ -76,6 +76,11 @@ model User {
   paymentsRecorded       Payment[]       @relation("PaymentRecorder")
   receiptsIssued         Receipt[]       @relation("ReceiptIssuer")
 
+  // Phase 6
+  marksEntered      MarkEntry[] @relation("MarkEnteredBy")
+  marksApproved     MarkEntry[] @relation("MarkApprovedBy")
+  timetablesCreated Timetable[] @relation("TimetableCreator")
+
   @@map("users")
 }
 

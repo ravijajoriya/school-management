@@ -7,10 +7,13 @@ const TEACHER_NAV: PortalNavItem[] = [
   { to: '/teacher', label: 'Dashboard', end: true },
   { to: '/teacher/attendance', label: 'Attendance', permissions: [PERMISSIONS.ATTENDANCE_MARK] },
   { to: '/teacher/classes', label: 'My classes' },
+  { to: '/teacher/marks', label: 'Marks entry', permissions: [PERMISSIONS.MARKS_ENTER] },
+  { to: '/teacher/timetable', label: 'My timetable' },
   { to: '/teacher/leave', label: 'My leave', permissions: [PERMISSIONS.LEAVE_APPLY] },
 ];
 
 const attendance = () => import('@/features/attendance/pages/TeacherAttendancePages');
+const teacherExams = () => import('@/features/exams/pages/TeacherExamPages');
 
 /** A lazily loaded teacher page that also needs a permission. */
 function guarded(
@@ -64,6 +67,16 @@ export const teacherRoutes: RouteObject = {
         guarded('attendance/:sectionId/register', PERMISSIONS.ATTENDANCE_MARK, async () => ({
           Component: (await attendance()).TeacherRegisterPage,
         })),
+        guarded('marks', PERMISSIONS.MARKS_ENTER, async () => ({
+          Component: (await teacherExams()).TeacherMarksPage,
+        })),
+        guarded('marks/:examSubjectId/:sectionId', PERMISSIONS.MARKS_ENTER, async () => ({
+          Component: (await teacherExams()).TeacherMarksSheetPage,
+        })),
+        {
+          path: 'timetable',
+          lazy: async () => ({ Component: (await teacherExams()).MyTimetablePage }),
+        },
         guarded('leave', PERMISSIONS.LEAVE_APPLY, async () => ({
           Component: (await import('@/features/leave/LeavePages')).MyLeavePage,
         })),

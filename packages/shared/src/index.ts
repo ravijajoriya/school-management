@@ -15,3 +15,5 @@ export * from './schemas/students.js';
 export * from './schemas/attendance.js';
 export * from './schemas/leave.js';
 export * from './schemas/fees.js';
+export * from './schemas/exams.js';
+export * from './schemas/timetable.js';

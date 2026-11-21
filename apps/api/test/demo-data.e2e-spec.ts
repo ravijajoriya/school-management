@@ -46,6 +46,11 @@ async function snapshot(ctx: TestContext) {
       ['adjustments', p.feeAdjustment.count()],
       ['payments', p.payment.count()],
       ['receipts', p.receipt.count()],
+      ['gradingScales', p.gradingScale.count()],
+      ['exams', p.examination.count()],
+      ['marks', p.markEntry.count()],
+      ['timetables', p.timetable.count()],
+      ['timetableEntries', p.timetableEntry.count()],
     ].map(async ([k, v]) => [k, await v] as const),
   );
   return Object.fromEntries(entries);
@@ -91,6 +96,13 @@ describe('Demo data seed & clear (e2e)', () => {
     expect(counts.students).toBe(49);
     expect(counts.sections).toBe(6);
     expect(counts.payments).toBeGreaterThan(0);
+    expect(counts.exams).toBeGreaterThan(0);
+    // Every seeded timetable is published and free of teacher clashes.
+    const timetables = await ctx.prisma.timetable.findMany({ where: { status: 'PUBLISHED' } });
+    expect(timetables).toHaveLength(6);
+    for (const tt of timetables) {
+      expect((await api('get', `/timetables/${tt.id}/clashes`).expect(200)).body).toEqual([]);
+    }
     await expect(seedDemoData(ctx.prisma)).rejects.toThrow(/already present/);
 
     // The demo works through the real API: a demo teacher marks today; the office reviews.

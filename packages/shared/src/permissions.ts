@@ -48,6 +48,14 @@ export const PERMISSIONS = {
   FEES_COLLECT: 'fees.collect',
   FEES_ADJUST: 'fees.adjust',
   FEES_VOID: 'fees.void',
+
+  // Phase 6 — examinations, results & timetable
+  EXAMS_READ: 'exams.read',
+  EXAMS_MANAGE: 'exams.manage',
+  MARKS_ENTER: 'marks.enter_assigned',
+  MARKS_APPROVE: 'marks.approve',
+  TIMETABLE_READ: 'timetable.read',
+  TIMETABLE_MANAGE: 'timetable.manage',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -165,6 +173,28 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     name: 'Void or reverse payments and mark cheques bounced',
     module: 'fees',
   },
+  { code: PERMISSIONS.EXAMS_READ, name: 'View examinations, marks and results', module: 'exams' },
+  {
+    code: PERMISSIONS.EXAMS_MANAGE,
+    name: 'Set up examinations and grading, open marks entry, finalise results',
+    module: 'exams',
+  },
+  {
+    code: PERMISSIONS.MARKS_ENTER,
+    name: 'Enter marks for own subjects and sections',
+    module: 'exams',
+  },
+  { code: PERMISSIONS.MARKS_APPROVE, name: 'Approve or return submitted marks', module: 'exams' },
+  {
+    code: PERMISSIONS.TIMETABLE_READ,
+    name: 'View class and teacher timetables',
+    module: 'timetable',
+  },
+  {
+    code: PERMISSIONS.TIMETABLE_MANAGE,
+    name: 'Create, edit and publish timetables',
+    module: 'timetable',
+  },
 ];
 
 /**
@@ -172,7 +202,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
  * created, so later changes made under Roles & Permissions are never overwritten.
  */
 export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<string, readonly PermissionCode[]>> = {
-  TEACHER: [PERMISSIONS.ATTENDANCE_MARK, PERMISSIONS.LEAVE_APPLY],
+  TEACHER: [PERMISSIONS.ATTENDANCE_MARK, PERMISSIONS.LEAVE_APPLY, PERMISSIONS.MARKS_ENTER],
 };
 
 /**
@@ -182,6 +212,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<string, readonly Permissi
 export const SELF_SERVICE_PERMISSIONS: ReadonlySet<PermissionCode> = new Set([
   PERMISSIONS.ATTENDANCE_MARK,
   PERMISSIONS.LEAVE_APPLY,
+  PERMISSIONS.MARKS_ENTER,
 ]);
 
 /** True when the user belongs in the Admin Portal (ADMIN role or any administrative permission). */
