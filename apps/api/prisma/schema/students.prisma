@@ -86,6 +86,7 @@ model StudentEnrolment {
   attendance        AttendanceRecord[]
   feeDues           StudentFeeDue[]
   payments          Payment[]
+  markEntries       MarkEntry[]
 
   @@unique([studentId, academicYearId])
   @@unique([sectionId, rollNumber])

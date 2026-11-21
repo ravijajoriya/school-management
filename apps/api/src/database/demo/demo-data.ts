@@ -17,6 +17,7 @@ import {
   AUDIT_ACTIONS,
   PERMISSIONS,
   ROLE_CODES,
+  DEFAULT_GRADE_BANDS,
   amountInWords,
   type PaymentMode,
   type ReceiptSnapshot,
@@ -51,6 +52,9 @@ export interface DemoManifest {
   /** Added with Phase 5 (older manifests do not have them). */
   feeHeadIds: string[];
   feeStructureIds: string[];
+  /** Added with Phase 6. */
+  gradingScaleIds: string[];
+  examIds: string[];
 }
 
 type Log = (message: string) => void;
@@ -90,6 +94,8 @@ const EMPTY_LISTS = {
   noticeIds: [],
   feeHeadIds: [],
   feeStructureIds: [],
+  gradingScaleIds: [],
+  examIds: [],
 };
 
 /** The active `demo_data.seeded` manifest, or null when demo data is not present. */
@@ -482,6 +488,8 @@ export async function seedDemoData(
     noticeIds: [],
     feeHeadIds: [],
     feeStructureIds: [],
+    gradingScaleIds: [],
+    examIds: [],
   };
   const counts: Record<string, number> = {};
 
@@ -622,6 +630,8 @@ export async function seedDemoData(
 
     // Sections, class subjects and teacher assignments.
     const sections: { def: SectionDef; id: string }[] = [];
+    /** className → subject code → class subject (id, type). */
+    const classSubjectsOf = new Map<string, Map<SubjectCode, { id: string; type: string }>>();
     for (const def of SECTIONS) {
       const cls = classes.get(def.className)!;
       let name = def.name;
@@ -657,6 +667,8 @@ export async function seedDemoData(
           });
           manifest.classSubjectIds.push(cs.id);
         }
+        if (!classSubjectsOf.has(def.className)) classSubjectsOf.set(def.className, new Map());
+        classSubjectsOf.get(def.className)!.set(code, { id: cs.id, type: cs.subjectType });
         await tx.teacherAssignment.create({
           data: {
             academicYearId: year.id,
@@ -1263,6 +1275,220 @@ export async function seedDemoData(
     counts.payments = payments.length;
     counts.feeAdjustments = adjustments;
 
+    // --- Exams: a grading scale, a finalised unit test per class, a half-yearly in marks entry --
+    const scale = await tx.gradingScale.create({
+      data: {
+        name: 'Standard 8-point (demo)',
+        bands: {
+          create: DEFAULT_GRADE_BANDS.map((b) => ({
+            minPercentage: b.minPercentage.toFixed(2),
+            maxPercentage: b.maxPercentage.toFixed(2),
+            gradeLabel: b.gradeLabel,
+            remark: b.remark,
+          })),
+        },
+      },
+    });
+    manifest.gradingScaleIds.push(scale.id);
+    const ability = new Map(
+      enrolments.map((e) => [e.id, e.irregular ? 0.42 : 0.5 + rand() * 0.45]),
+    );
+    const teacherUserFor = (sectionId: string, code: SubjectCode) => {
+      const def = sections.find((x) => x.id === sectionId)!.def;
+      const key = def.subjects.find(([c]) => c === code)?.[1];
+      return (key && userOfEmployee[key]) || admin.id;
+    };
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    const utStart =
+      addDays(enrolmentDate, 25) > addDays(today, -40)
+        ? addDays(enrolmentDate, 25)
+        : addDays(today, -40);
+    const utEnd = addDays(utStart, 5);
+    let markRows = 0;
+    for (const className of new Set(SECTIONS.map((x) => x.className))) {
+      const subjects = [...classSubjectsOf.get(className)!.entries()];
+      const classId = classes.get(className)!.id;
+      const classEnrolments = enrolments.filter((e) => e.className === className);
+      if (utEnd < today) {
+        const ut = await tx.examination.create({
+          data: {
+            academicYearId: year.id,
+            classId,
+            name: 'Unit Test 1',
+            examType: 'UNIT_TEST',
+            startDate: dayToDate(utStart),
+            endDate: dayToDate(utEnd),
+            status: 'FINALIZED',
+            gradingScaleId: scale.id,
+            subjects: {
+              create: subjects.map(([, cs], i) => ({
+                classSubjectId: cs.id,
+                maxMarks: '25.00',
+                examDate: dayToDate(addDays(utStart, Math.min(i, 5))),
+                sequenceNo: i + 1,
+              })),
+            },
+          },
+          include: { subjects: true },
+        });
+        manifest.examIds.push(ut.id);
+        const rowsUt: Prisma.MarkEntryCreateManyInput[] = [];
+        for (const e of classEnrolments.filter((x) => !x.exitDate || x.exitDate >= utEnd)) {
+          for (const [i, [code, cs]] of subjects.entries()) {
+            if (cs.type === 'OPTIONAL' && rand() < 0.4) continue; // did not take the optional subject
+            const absent = rand() < 0.03;
+            const marks = Math.round(25 * clamp(ability.get(e.id)! + (rand() - 0.5) * 0.3) * 2) / 2;
+            rowsUt.push({
+              examSubjectId: ut.subjects[i].id,
+              studentEnrolmentId: e.id,
+              marksObtained: absent ? null : marks.toFixed(2),
+              isAbsent: absent,
+              enteredBy: teacherUserFor(e.sectionId, code),
+              approvedBy: admin.id,
+              status: 'FINAL',
+            });
+          }
+        }
+        await tx.markEntry.createMany({ data: rowsUt });
+        markRows += rowsUt.length;
+      }
+
+      const science = ['Class 8', 'Class 10', 'Class 12'].includes(className);
+      const hy = await tx.examination.create({
+        data: {
+          academicYearId: year.id,
+          classId,
+          name: 'Half-yearly',
+          examType: 'HALF_YEARLY',
+          startDate: dayToDate(addDays(today, -3)),
+          endDate: dayToDate(addDays(today, 6)),
+          status: 'MARKS_ENTRY',
+          gradingScaleId: null,
+          subjects: {
+            create: subjects
+              .flatMap(([code, cs]) =>
+                science && (code === 'SCI' || code === 'PHY' || code === 'CHEM' || code === 'BIO')
+                  ? [
+                      {
+                        classSubjectId: cs.id,
+                        componentName: 'Theory',
+                        maxMarks: '60.00',
+                        passMarks: '20.00',
+                      },
+                      {
+                        classSubjectId: cs.id,
+                        componentName: 'Practical',
+                        maxMarks: '20.00',
+                        passMarks: '7.00',
+                      },
+                    ]
+                  : [{ classSubjectId: cs.id, maxMarks: '80.00' }],
+              )
+              .map((x, i) => ({
+                ...x,
+                sequenceNo: i + 1,
+                examDate: dayToDate(addDays(today, -3 + Math.min(i, 8))),
+              })),
+          },
+        },
+        include: { subjects: { include: { classSubject: { include: { subject: true } } } } },
+      });
+      manifest.examIds.push(hy.id);
+      // Class 8 A Maths entered by Anil but not yet submitted; Class 10 A English submitted for approval.
+      const partial = [
+        { cls: 'Class 8', subject: 'Mathematics', status: 'DRAFT' },
+        { cls: 'Class 10', subject: 'English', status: 'SUBMITTED' },
+      ].filter((x) => x.cls === className);
+      for (const p of partial) {
+        const es = hy.subjects.find((x) => x.classSubject.subject.name === p.subject)!;
+        const code = SUBJECTS.find(([, n]) => n === p.subject)![0];
+        const rowsHy = classEnrolments
+          .filter((e) => !e.exitDate)
+          .map((e) => ({
+            examSubjectId: es.id,
+            studentEnrolmentId: e.id,
+            marksObtained: Math.round(
+              80 * clamp(ability.get(e.id)! + (rand() - 0.5) * 0.25),
+            ).toFixed(2),
+            isAbsent: false,
+            enteredBy: teacherUserFor(e.sectionId, code),
+            status: p.status,
+          }));
+        await tx.markEntry.createMany({ data: rowsHy });
+        markRows += rowsHy.length;
+      }
+    }
+    counts.exams = manifest.examIds.length;
+    counts.marks = markRows;
+
+    // --- Timetables: one published, clash-free week per demo section ---------------------------
+    const t = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00Z`);
+    const periods = [
+      { n: 1, start: '08:00', end: '08:40' },
+      { n: 2, start: '08:40', end: '09:20' },
+      { n: 3, start: '09:20', end: '10:00' },
+      { n: 4, start: '10:00', end: '10:40' },
+      { n: 5, start: '10:40', end: '11:00', isBreak: true },
+      { n: 6, start: '11:00', end: '11:40' },
+      { n: 7, start: '11:40', end: '12:20' },
+    ];
+    const busy = new Set<string>();
+    let lessons = 0;
+    for (const [si, { def, id: sectionId }] of sections.entries()) {
+      const entries: Prisma.TimetableEntryCreateManyTimetableInput[] = [];
+      const options = def.subjects.map(([code, teacher]) => ({
+        csId: classSubjectsOf.get(def.className)!.get(code)!.id,
+        teacher,
+      }));
+      for (let day = 1; day <= 6; day++) {
+        let pointer = day + si;
+        for (const p of periods) {
+          if (p.isBreak) {
+            entries.push({
+              dayOfWeek: day,
+              periodNumber: p.n,
+              startTime: t(p.start),
+              endTime: t(p.end),
+              isBreak: true,
+            });
+            continue;
+          }
+          let chosen: (typeof options)[number] | null = null;
+          for (let k = 0; k < options.length; k++) {
+            const o = options[(pointer + k) % options.length];
+            if (!busy.has(`${day}-${p.n}-${o.teacher}`)) {
+              chosen = o;
+              pointer += k + 1;
+              break;
+            }
+          }
+          if (chosen) busy.add(`${day}-${p.n}-${chosen.teacher}`);
+          entries.push({
+            dayOfWeek: day,
+            periodNumber: p.n,
+            startTime: t(p.start),
+            endTime: t(p.end),
+            classSubjectId: chosen?.csId ?? null,
+            teacherEmployeeId: chosen ? employeeId[chosen.teacher] : null,
+            roomLabel: `Room ${100 + si * 3 + 1}`,
+          });
+          if (chosen) lessons++;
+        }
+      }
+      await tx.timetable.create({
+        data: {
+          academicYearId: year.id,
+          sectionId,
+          name: 'Regular timetable (demo)',
+          status: 'PUBLISHED',
+          effectiveFrom: dayToDate(enrolmentDate),
+          createdBy: admin.id,
+          entries: { createMany: { data: entries } },
+        },
+      });
+    }
+    counts.timetableLessons = lessons;
+
     // Admission enquiries (Phase 2) — one NEW enquiry for Class 1 is ready to "Convert to student".
     const enquiries = [
       {
@@ -1562,6 +1788,7 @@ export async function clearDemoData(
     // Fee records are normally undeletable (database triggers); this transaction-local switch
     // is the only bypass and exists for this development tool.
     await tx.$executeRawUnsafe(`SET LOCAL app.allow_financial_delete = 'on'`);
+    await tx.$executeRawUnsafe(`SET LOCAL app.allow_protected_delete = 'on'`);
 
     // Students to remove: the seeded ones, plus students that exist only inside demo classes
     // (for example ones created while testing "Convert to student" or "Register student").
@@ -1607,6 +1834,67 @@ export async function clearDemoData(
       'leave requests',
       (await tx.leaveRequest.deleteMany({ where: { employeeId: { in: m.employeeIds } } })).count,
     );
+
+    // Exams: the seeded ones plus any exam set up on demo classes while testing; marks of removed
+    // students in any exam. Finalised marks/exams are protected, hence the bypass above.
+    const examIds = [
+      ...new Set([
+        ...m.examIds,
+        ...(
+          await tx.examSubject.findMany({
+            where: { classSubjectId: { in: m.classSubjectIds } },
+            select: { examinationId: true },
+          })
+        ).map((x) => x.examinationId),
+      ]),
+    ];
+    count(
+      'marks',
+      (
+        await tx.markEntry.deleteMany({
+          where: {
+            OR: [
+              { examSubject: { examinationId: { in: examIds } } },
+              { studentEnrolmentId: { in: enrolmentIds } },
+            ],
+          },
+        })
+      ).count,
+    );
+    await tx.examSubject.deleteMany({ where: { examinationId: { in: examIds } } });
+    count(
+      'examinations',
+      (await tx.examination.deleteMany({ where: { id: { in: examIds } } })).count,
+    );
+    for (const id of m.gradingScaleIds) {
+      if (await tx.examination.count({ where: { gradingScaleId: id } })) {
+        kept.push('the demo grading scale (your own exams use it)');
+        continue;
+      }
+      await tx.gradeBand.deleteMany({ where: { gradingScaleId: id } });
+      count('grading scales', (await tx.gradingScale.deleteMany({ where: { id } })).count);
+    }
+
+    // Timetables of demo sections; demo teachers/subjects are cleared from any other timetable.
+    const timetableIds = (
+      await tx.timetable.findMany({
+        where: { sectionId: { in: m.sectionIds } },
+        select: { id: true },
+      })
+    ).map((x) => x.id);
+    await tx.timetableEntry.deleteMany({ where: { timetableId: { in: timetableIds } } });
+    count(
+      'timetables',
+      (await tx.timetable.deleteMany({ where: { id: { in: timetableIds } } })).count,
+    );
+    await tx.timetableEntry.updateMany({
+      where: { teacherEmployeeId: { in: m.employeeIds } },
+      data: { teacherEmployeeId: null },
+    });
+    await tx.timetableEntry.updateMany({
+      where: { classSubjectId: { in: m.classSubjectIds } },
+      data: { classSubjectId: null },
+    });
 
     // Fees of the removed students (seeded ones and anything recorded later while testing).
     const paymentIds = (
@@ -1774,6 +2062,9 @@ export async function clearDemoData(
           _count: {
             select: {
               sections: true,
+              examinations: true,
+              timetables: true,
+              gradingScales: true,
               classSubjects: true,
               enrolments: true,
               teacherAssignments: true,

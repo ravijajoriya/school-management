@@ -20,6 +20,8 @@ import { StudentsModule } from './modules/students/students.module.js';
 import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { LeaveModule } from './modules/leave/leave.module.js';
 import { FeesModule } from './modules/fees/fees.module.js';
+import { ExamsModule } from './modules/exams/exams.module.js';
+import { TimetableModule } from './modules/timetable/timetable.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -84,6 +86,8 @@ import { UsersModule } from './modules/users/users.module.js';
     AttendanceModule,
     LeaveModule,
     FeesModule,
+    ExamsModule,
+    TimetableModule,
     HealthModule,
   ],
   providers: [

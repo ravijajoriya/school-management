@@ -61,17 +61,17 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts, 0007 exams, results & timetable)
 - `docs/erd/` — entity-relationship diagrams per phase
 - `docs/design/` — approved UI designs
 
 ## Demo data (development only)
 
-| Command            | What it does                                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `pnpm demo:seed`   | Adds a demo school: 6 classes, 9 staff, 49 students, attendance, leave, fees & receipts, enquiries |
-| `pnpm demo:status` | Shows whether demo data is present                                                                 |
-| `pnpm demo:clear`  | Removes the demo data again; your own data is kept                                                 |
+| Command            | What it does                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm demo:seed`   | Adds a demo school: 6 classes, 9 staff, 49 students, attendance, leave, fees & receipts, exams & marks, timetables, enquiries |
+| `pnpm demo:status` | Shows whether demo data is present                                                                                            |
+| `pnpm demo:clear`  | Removes the demo data again; your own data is kept                                                                            |
 
 Demo logins (password `Demo@1234`): `sunita@demo.local` and `anil@demo.local` (class teachers),
 `pooja@demo.local` (subject teacher only), `office@demo.local` (limited office role). Demo records

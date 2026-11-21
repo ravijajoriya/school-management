@@ -1,0 +1,156 @@
+// Phase 6 — examinations, grading & timetable
+// (migrations 016_examinations, 017_grading, 018_timetable).
+
+/// Exam instance for an academic year and class.
+model Examination {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId String    @map("academic_year_id") @db.Uuid
+  classId        String    @map("class_id") @db.Uuid
+  name           String    @db.VarChar(120)
+  /// SQL: CHECK (exam_type IN ('UNIT_TEST','HALF_YEARLY','ANNUAL','PRE_BOARD','OTHER'))
+  examType       String    @map("exam_type") @db.VarChar(40)
+  startDate      DateTime? @map("start_date") @db.Date
+  /// SQL: CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
+  endDate        DateTime? @map("end_date") @db.Date
+  /// SQL: CHECK (status IN ('DRAFT','SCHEDULED','MARKS_ENTRY','FINALIZED')); FINALIZED is final (trigger)
+  status         String    @default("DRAFT") @db.VarChar(20)
+  /// Added: the grading scale used for results (fixed once the exam is finalised).
+  gradingScaleId String?   @map("grading_scale_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  academicYear AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class        Class         @relation(fields: [classId], references: [id], onDelete: Restrict)
+  gradingScale GradingScale? @relation(fields: [gradingScaleId], references: [id], onDelete: Restrict)
+  subjects     ExamSubject[]
+
+  @@unique([academicYearId, classId, name])
+  @@index([academicYearId, status])
+  @@map("examinations")
+}
+
+/// Subjects and marks rules included in an exam (one row per component, e.g. Theory/Practical).
+model ExamSubject {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  examinationId  String    @map("examination_id") @db.Uuid
+  classSubjectId String    @map("class_subject_id") @db.Uuid
+  examDate       DateTime? @map("exam_date") @db.Date
+  /// SQL: CHECK (max_marks > 0)
+  maxMarks       Decimal   @map("max_marks") @db.Decimal(7, 2)
+  /// SQL: CHECK (pass_marks >= 0 AND pass_marks <= max_marks)
+  passMarks      Decimal?  @map("pass_marks") @db.Decimal(7, 2)
+  componentName  String?   @map("component_name") @db.VarChar(80)
+  sequenceNo     Int       @map("sequence_no") @db.SmallInt
+
+  examination  Examination  @relation(fields: [examinationId], references: [id], onDelete: Restrict)
+  classSubject ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: Restrict)
+  marks        MarkEntry[]
+
+  /// SQL: UNIQUE (examination_id, class_subject_id, coalesce(lower(component_name), ''))
+  @@unique([examinationId, sequenceNo])
+  @@index([classSubjectId])
+  @@map("exam_subjects")
+}
+
+/// Student marks for an exam subject/component. Not entered = no row.
+model MarkEntry {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  examSubjectId      String   @map("exam_subject_id") @db.Uuid
+  studentEnrolmentId String   @map("student_enrolment_id") @db.Uuid
+  /// SQL: CHECK (is_absent = (marks_obtained IS NULL)); trigger checks marks ≤ max_marks
+  marksObtained      Decimal? @map("marks_obtained") @db.Decimal(7, 2)
+  isAbsent           Boolean  @default(false) @map("is_absent")
+  remarks            String?  @db.VarChar(255)
+  enteredBy          String   @map("entered_by") @db.Uuid
+  approvedBy         String?  @map("approved_by") @db.Uuid
+  /// SQL: CHECK (status IN ('DRAFT','SUBMITTED','APPROVED','FINAL')); FINAL rows are locked (trigger)
+  status             String   @default("DRAFT") @db.VarChar(20)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  examSubject ExamSubject      @relation(fields: [examSubjectId], references: [id], onDelete: Restrict)
+  enrolment   StudentEnrolment @relation(fields: [studentEnrolmentId], references: [id], onDelete: Restrict)
+  enterer     User             @relation("MarkEnteredBy", fields: [enteredBy], references: [id], onDelete: Restrict)
+  approver    User?            @relation("MarkApprovedBy", fields: [approvedBy], references: [id], onDelete: Restrict)
+
+  @@unique([examSubjectId, studentEnrolmentId])
+  @@index([studentEnrolmentId])
+  @@map("mark_entries")
+}
+
+/// Grading configuration, optionally scoped to a year and/or class. Locked once a finalised exam uses it.
+model GradingScale {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name           String   @db.VarChar(100)
+  academicYearId String?  @map("academic_year_id") @db.Uuid
+  classId        String?  @map("class_id") @db.Uuid
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  academicYear AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class        Class?        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  bands        GradeBand[]
+  examinations Examination[]
+
+  @@map("grading_scales")
+}
+
+/// Grade ranges. SQL: no overlapping ranges within a scale (exclusion constraint).
+model GradeBand {
+  id             String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  gradingScaleId String  @map("grading_scale_id") @db.Uuid
+  minPercentage  Decimal @map("min_percentage") @db.Decimal(5, 2)
+  maxPercentage  Decimal @map("max_percentage") @db.Decimal(5, 2)
+  gradeLabel     String  @map("grade_label") @db.VarChar(10)
+  remark         String? @db.VarChar(100)
+
+  gradingScale GradingScale @relation(fields: [gradingScaleId], references: [id], onDelete: Restrict)
+
+  @@index([gradingScaleId])
+  @@map("grade_bands")
+}
+
+/// Draft / published / archived timetable for a section. At most one PUBLISHED per section.
+model Timetable {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId String    @map("academic_year_id") @db.Uuid
+  sectionId      String    @map("section_id") @db.Uuid
+  name           String    @db.VarChar(100)
+  /// SQL: CHECK (status IN ('DRAFT','PUBLISHED','ARCHIVED')); UNIQUE (section_id) WHERE status = 'PUBLISHED'
+  status         String    @default("DRAFT") @db.VarChar(20)
+  effectiveFrom  DateTime? @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+  createdBy      String    @map("created_by") @db.Uuid
+
+  academicYear AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  /// Composite FK: the section belongs to the timetable's academic year.
+  section      Section          @relation(fields: [sectionId, academicYearId], references: [id, academicYearId], onDelete: Restrict)
+  creator      User             @relation("TimetableCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  entries      TimetableEntry[]
+
+  @@index([sectionId, status])
+  @@map("timetables")
+}
+
+/// Period-level row: day, period, times, subject and teacher (empty for breaks).
+model TimetableEntry {
+  id                String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  timetableId       String   @map("timetable_id") @db.Uuid
+  /// SQL: CHECK (day_of_week BETWEEN 1 AND 7)
+  dayOfWeek         Int      @map("day_of_week") @db.SmallInt
+  periodNumber      Int      @map("period_number") @db.SmallInt
+  startTime         DateTime @map("start_time") @db.Time(0)
+  /// SQL: CHECK (end_time > start_time)
+  endTime           DateTime @map("end_time") @db.Time(0)
+  classSubjectId    String?  @map("class_subject_id") @db.Uuid
+  teacherEmployeeId String?  @map("teacher_employee_id") @db.Uuid
+  roomLabel         String?  @map("room_label") @db.VarChar(50)
+  /// SQL: CHECK (NOT is_break OR (class_subject_id IS NULL AND teacher_employee_id IS NULL))
+  isBreak           Boolean  @default(false) @map("is_break")
+
+  timetable    Timetable     @relation(fields: [timetableId], references: [id], onDelete: Restrict)
+  classSubject ClassSubject? @relation(fields: [classSubjectId], references: [id], onDelete: Restrict)
+  teacher      Employee?     @relation(fields: [teacherEmployeeId], references: [id], onDelete: Restrict)
+
+  @@unique([timetableId, dayOfWeek, periodNumber])
+  @@index([teacherEmployeeId, dayOfWeek])
+  @@map("timetable_entries")
+}
