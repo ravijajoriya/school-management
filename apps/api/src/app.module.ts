@@ -19,6 +19,7 @@ import { StaffModule } from './modules/staff/staff.module.js';
 import { StudentsModule } from './modules/students/students.module.js';
 import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { LeaveModule } from './modules/leave/leave.module.js';
+import { FeesModule } from './modules/fees/fees.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -82,6 +83,7 @@ import { UsersModule } from './modules/users/users.module.js';
     StudentsModule,
     AttendanceModule,
     LeaveModule,
+    FeesModule,
     HealthModule,
   ],
   providers: [

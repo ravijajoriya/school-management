@@ -61,9 +61,25 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts)
 - `docs/erd/` — entity-relationship diagrams per phase
 - `docs/design/` — approved UI designs
+
+## Demo data (development only)
+
+| Command            | What it does                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `pnpm demo:seed`   | Adds a demo school: 6 classes, 9 staff, 49 students, attendance, leave, fees & receipts, enquiries |
+| `pnpm demo:status` | Shows whether demo data is present                                                                 |
+| `pnpm demo:clear`  | Removes the demo data again; your own data is kept                                                 |
+
+Demo logins (password `Demo@1234`): `sunita@demo.local` and `anil@demo.local` (class teachers),
+`pooja@demo.local` (subject teacher only), `office@demo.local` (limited office role). Demo records
+are easy to spot: admission numbers `DEMO-0001…`, staff codes `DEMO-EMP-…`, enquiries `DEMO-ENQ-…`,
+receipts `DEMO-RCT/…`. The seed records what it created in the audit log, and `demo:clear` removes
+exactly that, plus anything you later attach to it (attendance, leave, fees, documents, students
+converted into demo classes). Demo logins you have signed in with are deactivated, not deleted,
+because the audit log can never be changed. Refuses to run with `NODE_ENV=production`.
 
 ## Common commands
 

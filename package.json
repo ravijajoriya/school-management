@@ -16,7 +16,10 @@
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --concurrency=1",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "demo:seed": "pnpm --filter @school/api demo:seed",
+    "demo:clear": "pnpm --filter @school/api demo:clear",
+    "demo:status": "pnpm --filter @school/api demo:status"
   },
   "devDependencies": {
     "prettier": "3.10.1",

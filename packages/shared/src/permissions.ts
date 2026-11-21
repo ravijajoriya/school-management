@@ -41,6 +41,13 @@ export const PERMISSIONS = {
   LEAVE_APPLY: 'leave.apply',
   LEAVE_READ: 'leave.read',
   LEAVE_APPROVE: 'leave.approve',
+
+  // Phase 5 — fees & receipts
+  FEES_READ: 'fees.read',
+  FEES_CONFIGURE: 'fees.configure',
+  FEES_COLLECT: 'fees.collect',
+  FEES_ADJUST: 'fees.adjust',
+  FEES_VOID: 'fees.void',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -136,6 +143,27 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     code: PERMISSIONS.LEAVE_APPROVE,
     name: 'Approve or reject staff leave requests',
     module: 'leave',
+  },
+  {
+    code: PERMISSIONS.FEES_READ,
+    name: 'View fee ledgers, receipts and fee reports',
+    module: 'fees',
+  },
+  {
+    code: PERMISSIONS.FEES_CONFIGURE,
+    name: 'Set up fee heads and fee plans, generate dues, add one-off charges',
+    module: 'fees',
+  },
+  { code: PERMISSIONS.FEES_COLLECT, name: 'Record payments and issue receipts', module: 'fees' },
+  {
+    code: PERMISSIONS.FEES_ADJUST,
+    name: 'Approve concessions, discounts, waivers and fines',
+    module: 'fees',
+  },
+  {
+    code: PERMISSIONS.FEES_VOID,
+    name: 'Void or reverse payments and mark cheques bounced',
+    module: 'fees',
   },
 ];
 

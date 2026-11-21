@@ -19,6 +19,8 @@ model AcademicYear {
   classSubjects      ClassSubject[]
   teacherAssignments TeacherAssignment[]
   enrolments         StudentEnrolment[]
+  feeStructures      FeeStructure[]
+  feeDues            StudentFeeDue[]
 
   @@map("academic_years")
 }

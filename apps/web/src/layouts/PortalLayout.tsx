@@ -24,8 +24,8 @@ export function PortalLayout({ title, nav }: { title: string; nav: PortalNavItem
   const visible = nav.filter((item) => !item.permissions || can(...item.permissions));
 
   return (
-    <div className="flex min-h-screen bg-surface">
-      <aside className="flex w-64 shrink-0 flex-col bg-brand-navy text-white">
+    <div className="flex min-h-screen bg-surface print:block print:bg-white">
+      <aside className="flex w-64 shrink-0 flex-col bg-brand-navy text-white print:hidden">
         <Link to="/" className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
           <SchoolLogo className="h-9 w-9" onDark />
           <div className="leading-tight">
@@ -63,11 +63,11 @@ export function PortalLayout({ title, nav }: { title: string; nav: PortalNavItem
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
+        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6 print:hidden">
           <span className="font-semibold text-brand-navy">{title}</span>
           <UserMenu />
         </header>
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 print:p-0">
           <Outlet />
         </main>
       </div>

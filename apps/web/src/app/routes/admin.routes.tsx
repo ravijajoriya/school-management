@@ -30,6 +30,36 @@ const ADMIN_NAV: PortalNavItem[] = [
     section: 'People',
   },
   {
+    to: '/admin/fees/collect',
+    label: 'Collect Fees',
+    permissions: [PERMISSIONS.FEES_COLLECT],
+    section: 'Fees',
+  },
+  {
+    to: '/admin/fees/payments',
+    label: 'Payments & Receipts',
+    permissions: [PERMISSIONS.FEES_READ],
+    section: 'Fees',
+  },
+  {
+    to: '/admin/fees/reports',
+    label: 'Fee Reports',
+    permissions: [PERMISSIONS.FEES_READ],
+    section: 'Fees',
+  },
+  {
+    to: '/admin/fees/plans',
+    label: 'Fee Plans',
+    permissions: [PERMISSIONS.FEES_READ],
+    section: 'Fees',
+  },
+  {
+    to: '/admin/fees/heads',
+    label: 'Fee Heads',
+    permissions: [PERMISSIONS.FEES_READ],
+    section: 'Fees',
+  },
+  {
     to: '/admin/attendance',
     label: 'Mark & Correct',
     end: true,
@@ -147,6 +177,9 @@ const academics = () => import('@/features/admin/academics/AcademicsPages');
 const staff = () => import('@/features/admin/staff/StaffPages');
 const students = () => import('@/features/admin/students/StudentPages');
 const attendance = () => import('@/features/attendance/pages/AdminAttendancePages');
+const feeSetup = () => import('@/features/fees/pages/FeeSetupPages');
+const feeLedger = () => import('@/features/fees/pages/FeeLedgerPages');
+const feeReports = () => import('@/features/fees/pages/FeeReportPages');
 
 /** A permission-guarded, lazy-loaded admin page. */
 function guarded(
@@ -199,6 +232,27 @@ export const adminRoutes: RouteObject = {
         })),
         guarded('leave', PERMISSIONS.LEAVE_READ, async () => ({
           Component: (await import('@/features/leave/LeavePages')).LeaveRequestsPage,
+        })),
+        guarded('fees/collect', PERMISSIONS.FEES_COLLECT, async () => ({
+          Component: (await feeLedger()).CollectFeesPage,
+        })),
+        guarded('fees/students/:studentId', PERMISSIONS.FEES_READ, async () => ({
+          Component: (await feeLedger()).StudentFeesPage,
+        })),
+        guarded('fees/receipts/:paymentId', PERMISSIONS.FEES_READ, async () => ({
+          Component: (await feeLedger()).ReceiptPage,
+        })),
+        guarded('fees/payments', PERMISSIONS.FEES_READ, async () => ({
+          Component: (await feeReports()).PaymentsPage,
+        })),
+        guarded('fees/reports', PERMISSIONS.FEES_READ, async () => ({
+          Component: (await feeReports()).FeeReportsPage,
+        })),
+        guarded('fees/plans', PERMISSIONS.FEES_READ, async () => ({
+          Component: (await feeSetup()).FeePlansPage,
+        })),
+        guarded('fees/heads', PERMISSIONS.FEES_READ, async () => ({
+          Component: (await feeSetup()).FeeHeadsPage,
         })),
         guarded('attendance', PERMISSIONS.ATTENDANCE_READ, async () => ({
           Component: (await attendance()).MarkAttendancePage,

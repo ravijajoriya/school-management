@@ -71,6 +71,11 @@ model User {
   attendanceUpdated AttendanceRecord[] @relation("AttendanceUpdatedBy")
   leaveReviewed     LeaveRequest[]     @relation("LeaveReviewer")
 
+  // Phase 5
+  feeAdjustmentsApproved FeeAdjustment[] @relation("FeeAdjustmentApprover")
+  paymentsRecorded       Payment[]       @relation("PaymentRecorder")
+  receiptsIssued         Receipt[]       @relation("ReceiptIssuer")
+
   @@map("users")
 }
 
