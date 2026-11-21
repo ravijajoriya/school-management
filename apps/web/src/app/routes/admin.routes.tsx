@@ -6,6 +6,48 @@ import { PortalLayout, type PortalNavItem } from '@/layouts/PortalLayout';
 const ADMIN_NAV: PortalNavItem[] = [
   { to: '/admin', label: 'Dashboard', end: true },
   {
+    to: '/admin/students',
+    label: 'Students',
+    permissions: [PERMISSIONS.STUDENTS_READ],
+    section: 'People',
+  },
+  {
+    to: '/admin/promotions',
+    label: 'Promotions',
+    permissions: [PERMISSIONS.STUDENTS_LIFECYCLE],
+    section: 'People',
+  },
+  {
+    to: '/admin/staff',
+    label: 'Staff',
+    permissions: [PERMISSIONS.EMPLOYEES_READ],
+    section: 'People',
+  },
+  {
+    to: '/admin/academic-years',
+    label: 'Academic Years',
+    permissions: [PERMISSIONS.ACADEMICS_READ],
+    section: 'Academics',
+  },
+  {
+    to: '/admin/classes',
+    label: 'Classes & Sections',
+    permissions: [PERMISSIONS.ACADEMICS_READ],
+    section: 'Academics',
+  },
+  {
+    to: '/admin/subjects',
+    label: 'Subjects',
+    permissions: [PERMISSIONS.ACADEMICS_READ],
+    section: 'Academics',
+  },
+  {
+    to: '/admin/teacher-assignments',
+    label: 'Teacher Assignments',
+    permissions: [PERMISSIONS.ACADEMICS_READ],
+    section: 'Academics',
+  },
+  {
     to: '/admin/website',
     label: 'Website Pages',
     permissions: [PERMISSIONS.WEBSITE_MANAGE],
@@ -70,6 +112,9 @@ const ADMIN_NAV: PortalNavItem[] = [
 const cms = () => import('@/features/admin/cms/CmsAdminPages');
 const website = () => import('@/features/admin/website/WebsitePages');
 const enquiries = () => import('@/features/admin/enquiries/EnquiryPages');
+const academics = () => import('@/features/admin/academics/AcademicsPages');
+const staff = () => import('@/features/admin/staff/StaffPages');
+const students = () => import('@/features/admin/students/StudentPages');
 
 /** A permission-guarded, lazy-loaded admin page. */
 function guarded(
@@ -102,6 +147,36 @@ export const adminRoutes: RouteObject = {
               .AdminDashboardPage,
           }),
         },
+        guarded('students', PERMISSIONS.STUDENTS_READ, async () => ({
+          Component: (await students()).StudentsPage,
+        })),
+        guarded('students/new', PERMISSIONS.STUDENTS_MANAGE, async () => ({
+          Component: (await students()).RegisterStudentPage,
+        })),
+        guarded('students/:id', PERMISSIONS.STUDENTS_READ, async () => ({
+          Component: (await students()).StudentDetailPage,
+        })),
+        guarded('promotions', PERMISSIONS.STUDENTS_LIFECYCLE, async () => ({
+          Component: (await students()).PromotionsPage,
+        })),
+        guarded('staff', PERMISSIONS.EMPLOYEES_READ, async () => ({
+          Component: (await staff()).EmployeesPage,
+        })),
+        guarded('staff/:id', PERMISSIONS.EMPLOYEES_READ, async () => ({
+          Component: (await staff()).EmployeeDetailPage,
+        })),
+        guarded('academic-years', PERMISSIONS.ACADEMICS_READ, async () => ({
+          Component: (await academics()).AcademicYearsPage,
+        })),
+        guarded('classes', PERMISSIONS.ACADEMICS_READ, async () => ({
+          Component: (await academics()).ClassesSectionsPage,
+        })),
+        guarded('subjects', PERMISSIONS.ACADEMICS_READ, async () => ({
+          Component: (await academics()).SubjectsPage,
+        })),
+        guarded('teacher-assignments', PERMISSIONS.ACADEMICS_READ, async () => ({
+          Component: (await academics()).TeacherAssignmentsPage,
+        })),
         guarded('website', PERMISSIONS.WEBSITE_MANAGE, async () => ({
           Component: (await website()).WebsitePagesPage,
         })),

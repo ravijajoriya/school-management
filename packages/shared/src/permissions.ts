@@ -24,6 +24,15 @@ export const PERMISSIONS = {
   ENQUIRIES_READ: 'enquiries.read',
   ENQUIRIES_MANAGE: 'enquiries.manage',
   CONTACT_MESSAGES_MANAGE: 'contact_messages.manage',
+
+  // Phase 3 — academic structure, staff & students
+  ACADEMICS_READ: 'academics.read',
+  ACADEMICS_MANAGE: 'academics.manage',
+  EMPLOYEES_READ: 'employees.read',
+  EMPLOYEES_MANAGE: 'employees.manage',
+  STUDENTS_READ: 'students.read',
+  STUDENTS_MANAGE: 'students.manage',
+  STUDENTS_LIFECYCLE: 'students.lifecycle',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -70,5 +79,32 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     code: PERMISSIONS.CONTACT_MESSAGES_MANAGE,
     name: 'View & handle contact form messages',
     module: 'communication',
+  },
+  {
+    code: PERMISSIONS.ACADEMICS_READ,
+    name: 'View academic years, classes, sections, subjects & assignments',
+    module: 'academics',
+  },
+  {
+    code: PERMISSIONS.ACADEMICS_MANAGE,
+    name: 'Manage academic years, sections, subjects & teacher assignments',
+    module: 'academics',
+  },
+  { code: PERMISSIONS.EMPLOYEES_READ, name: 'View staff records', module: 'staff' },
+  {
+    code: PERMISSIONS.EMPLOYEES_MANAGE,
+    name: 'Add & edit staff records and documents',
+    module: 'staff',
+  },
+  { code: PERMISSIONS.STUDENTS_READ, name: 'View student records', module: 'students' },
+  {
+    code: PERMISSIONS.STUDENTS_MANAGE,
+    name: 'Register & edit students, guardians, enrolments and documents',
+    module: 'students',
+  },
+  {
+    code: PERMISSIONS.STUDENTS_LIFECYCLE,
+    name: 'Promote, retain, transfer & withdraw students',
+    module: 'students',
   },
 ];

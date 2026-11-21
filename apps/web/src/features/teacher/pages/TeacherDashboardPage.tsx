@@ -1,6 +1,8 @@
+import { Link } from 'react-router';
 import { Card, PageHeader } from '@/components/ui';
 import { NoticeFeed } from '@/features/admin/components/NoticeFeed';
 import { useAuth } from '@/features/auth/auth-context';
+import { MySectionCards } from './MyClassesPage';
 
 export function TeacherDashboardPage() {
   const { user } = useAuth();
@@ -12,10 +14,15 @@ export function TeacherDashboardPage() {
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Card className="h-fit p-5">
-          <h2 className="font-semibold text-brand-navy">Your classes</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Assigned classes, attendance and marks entry will appear here once academic setup (Phase
-            3) and attendance (Phase 4) are live.
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold text-brand-navy">Your classes</h2>
+            <Link to="/teacher/classes" className="text-sm text-brand-navy hover:underline">
+              View all
+            </Link>
+          </div>
+          <MySectionCards compact />
+          <p className="mt-4 text-xs text-ink-muted">
+            Attendance and marks entry arrive in the next phases.
           </p>
         </Card>
         <NoticeFeed />

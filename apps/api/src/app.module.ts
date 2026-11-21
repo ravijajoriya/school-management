@@ -9,11 +9,14 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 import { AccessGuard } from './common/guards/access.guard.js';
 import { PrismaModule } from './infrastructure/prisma/prisma.module.js';
 import { StorageModule } from './infrastructure/storage/storage.module.js';
+import { AcademicsModule } from './modules/academics/academics.module.js';
 import { AccessControlModule } from './modules/access-control/access-control.module.js';
 import { AdmissionsModule } from './modules/admissions/admissions.module.js';
 import { CmsModule } from './modules/cms/cms.module.js';
 import { ContactModule } from './modules/contact/contact.module.js';
 import { PublicModule } from './modules/public/public.module.js';
+import { StaffModule } from './modules/staff/staff.module.js';
+import { StudentsModule } from './modules/students/students.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -72,6 +75,9 @@ import { UsersModule } from './modules/users/users.module.js';
     AdmissionsModule,
     ContactModule,
     PublicModule,
+    AcademicsModule,
+    StaffModule,
+    StudentsModule,
     HealthModule,
   ],
   providers: [

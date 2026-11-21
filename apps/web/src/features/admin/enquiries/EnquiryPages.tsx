@@ -46,6 +46,7 @@ import {
   useUpdateContactMessage,
   useUpdateEnquiry,
 } from '../cms-api';
+import { ConvertEnquiryModal } from '../students/ConvertEnquiryModal';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -339,6 +340,7 @@ const HISTORY_LABELS: Record<string, string> = {
   'enquiry.created': 'Recorded by staff',
   'enquiry.updated': 'Updated',
   'enquiry.follow_up_added': 'Follow-up added',
+  'enquiry.converted': 'Converted to a student record',
 };
 
 function describeChange(before: unknown, after: unknown): string {
@@ -356,6 +358,9 @@ function describeChange(before: unknown, after: unknown): string {
 function EnquiryDetailView({ enquiry }: { enquiry: EnquiryDetail }) {
   const { can } = useAuth();
   const canManage = can(PERMISSIONS.ENQUIRIES_MANAGE);
+  const canConvert = canManage && can(PERMISSIONS.STUDENTS_MANAGE);
+  const navigate = useNavigate();
+  const [converting, setConverting] = useState(false);
   const assignees = useEnquiryAssignees();
   const update = useUpdateEnquiry(enquiry.id);
   const addFollowUp = useAddFollowUp(enquiry.id);
@@ -402,7 +407,32 @@ function EnquiryDetailView({ enquiry }: { enquiry: EnquiryDetail }) {
       <PageHeader
         title={enquiry.studentName}
         description={`${enquiry.referenceNumber} · ${enquiry.classSought.name} · received ${formatDateTime(enquiry.submittedAt)} via ${ENQUIRY_SOURCE_LABELS[enquiry.source]}`}
+        actions={
+          !enquiry.convertedStudent &&
+          canConvert && <Button onClick={() => setConverting(true)}>Convert to student</Button>
+        }
       />
+      {enquiry.convertedStudent && (
+        <div className="mb-4">
+          <Alert tone="success">
+            Admitted as{' '}
+            <Link
+              to={`/admin/students/${enquiry.convertedStudent.id}`}
+              className="font-medium underline"
+            >
+              {enquiry.convertedStudent.fullName} ({enquiry.convertedStudent.admissionNumber})
+            </Link>
+            .
+          </Alert>
+        </div>
+      )}
+      {converting && (
+        <ConvertEnquiryModal
+          enquiry={enquiry}
+          onClose={() => setConverting(false)}
+          onConverted={(studentId) => navigate(`/admin/students/${studentId}`)}
+        />
+      )}
       {error && (
         <div className="mb-4">
           <Alert>{error}</Alert>

@@ -61,7 +61,7 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students)
 - `docs/erd/` — entity-relationship diagrams per phase
 - `docs/design/` — approved UI designs
 
@@ -79,6 +79,12 @@ against PostgreSQL 18.
 ## Database rules
 
 - Never edit a migration that has been applied outside your machine — add a new one.
-- Constraints Prisma can't express (CHECKs, triggers, partial indexes) are appended by hand to the
-  generated `migration.sql` — create with `prisma migrate dev --create-only`, edit, then apply.
+- Constraints Prisma can't express (CHECKs, triggers, partial and expression indexes, sequences) are
+  appended by hand to the generated `migration.sql` — create with `prisma migrate dev --create-only`,
+  edit, then apply. Each one is noted with a `/// SQL:` comment on the field in `prisma/schema`.
+- If `migrate dev` refuses to run non-interactively (e.g. a data-loss warning), generate the SQL with
+  `prisma migrate diff --from-config-datasource --to-schema prisma/schema --script` into a new
+  `prisma/migrations/<timestamp>_<name>/migration.sql`, add the hand-written SQL, then `prisma:deploy`.
+- Uploaded student/staff documents and photos are private: stored under `private/` in `STORAGE_DIR`
+  and served only through permission-checked API endpoints (never a public URL).
 - No cascade deletes on historical records (students, enrolments, attendance, marks, payments, receipts).

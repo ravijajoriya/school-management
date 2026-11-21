@@ -96,3 +96,14 @@ export function collectImageIds(value: unknown, found = new Set<string>()): Set<
   }
   return found;
 }
+
+/** "Aarav", null, "Sharma" → "Aarav Sharma" */
+export const fullName = (...parts: (string | null | undefined)[]) =>
+  parts.filter((p) => p && p.trim()).join(' ');
+
+/** DATE column → "YYYY-MM-DD" (DATE values come back as UTC midnight). */
+export const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+export const isoDayOrNull = (d: Date | null | undefined) => (d ? isoDay(d) : null);
+
+/** "YYYY-MM-DD" → Date for a DATE column. */
+export const dayToDate = (day: string) => new Date(`${day}T00:00:00Z`);

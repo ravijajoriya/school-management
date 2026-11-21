@@ -24,7 +24,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service.js';
 import type { RequestContext } from '../../common/http/request-context.js';
 import type { RequestUser } from '../../common/http/request-user.js';
-import { dayRange, paginated, schoolDate } from '../../common/utils/content.js';
+import { dayRange, fullName, paginated, schoolDate } from '../../common/utils/content.js';
 import { AuditService } from '../audit/audit.service.js';
 import { UserAccessService } from '../auth/user-access.service.js';
 
@@ -195,9 +195,19 @@ export class EnquiriesService {
           orderBy: { followUpAt: 'desc' },
           include: { user: { select: { id: true, fullName: true } } },
         },
+        convertedStudent: {
+          select: {
+            id: true,
+            admissionNumber: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+          },
+        },
       },
     });
     if (!row) throw new NotFoundException('Enquiry not found');
+    const converted = row.convertedStudent;
     const history = await this.prisma.auditLog.findMany({
       where: { entityType: 'admission_enquiry', entityId: id },
       orderBy: { createdAt: 'desc' },
@@ -207,6 +217,13 @@ export class EnquiriesService {
       ...toListItem({ ...row, followUps: row.followUps.slice(0, 1) }),
       dateOfBirth: row.dateOfBirth?.toISOString().slice(0, 10) ?? null,
       message: row.message,
+      convertedStudent: converted
+        ? {
+            id: converted.id,
+            admissionNumber: converted.admissionNumber,
+            fullName: fullName(converted.firstName, converted.middleName, converted.lastName),
+          }
+        : null,
       followUps: row.followUps.map((f) => ({
         id: f.id,
         followUpAt: f.followUpAt.toISOString(),

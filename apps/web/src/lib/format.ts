@@ -36,6 +36,10 @@ export const dateBadge = (iso: string) => ({
   month: monthShort.format(new Date(iso)),
 });
 
+/** Today's date in the school's time zone as YYYY-MM-DD (for <input type="date"> defaults). */
+export const todayIso = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: SCHOOL_TIME_ZONE });
+
 /** ISO instant → value for <input type="datetime-local"> in the viewer's local time. */
 export function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return '';

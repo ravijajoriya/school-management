@@ -24,6 +24,18 @@ const UNIQUE_MESSAGES: Record<string, string> = {
   email: 'email: This email address is already in use',
   phone: 'phone: This phone number is already in use',
   code: 'code: This code is already in use',
+  name: 'name: This name is already in use',
+  admission_number: 'admissionNumber: This admission number is already in use',
+  employee_code: 'employeeCode: This employee code is already in use',
+  user_id: 'userId: This login is already linked to another employee',
+  academic_year_id_class_id_name: 'name: A section with this name already exists for this class',
+  academic_year_id_class_id_subject_id: 'subjectId: This subject is already set for the class',
+  employee_id_section_id_class_subject_id:
+    'classSubjectId: This teacher is already assigned to this subject and section',
+  student_id_academic_year_id:
+    'academicYearId: The student is already enrolled in this academic year',
+  section_id_roll_number: 'rollNumber: This roll number is already used in the section',
+  converted_student_id: 'This enquiry has already been converted',
 };
 
 /**

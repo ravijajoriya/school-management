@@ -1,0 +1,52 @@
+// Phase 3 — migration 007_employees
+
+/// Common staff/teacher employment identity. An employee may have one linked login.
+model Employee {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. EMP-0001 (auto from employee_code_seq when not entered)
+  employeeCode   String    @unique @map("employee_code") @db.VarChar(40)
+  firstName      String    @map("first_name") @db.VarChar(80)
+  lastName       String?   @map("last_name") @db.VarChar(80)
+  email          String?   @db.VarChar(255)
+  phone          String?   @db.VarChar(20)
+  dateOfBirth    DateTime? @map("date_of_birth") @db.Date
+  joiningDate    DateTime  @map("joining_date") @db.Date
+  designation    String    @db.VarChar(100)
+  department     String?   @db.VarChar(100)
+  /// SQL: CHECK (employment_type IN ('FULL_TIME','PART_TIME','CONTRACT','VISITING'))
+  employmentType String?   @map("employment_type") @db.VarChar(30)
+  /// SQL: CHECK (status IN ('ACTIVE','INACTIVE','LEFT'))
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  userId         String?   @unique @map("user_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user           User?               @relation("EmployeeUser", fields: [userId], references: [id], onDelete: Restrict)
+  documents      EmployeeDocument[]
+  classTeacherOf Section[]           @relation("SectionClassTeacher")
+  assignments    TeacherAssignment[]
+
+  @@index([status])
+  @@map("employees")
+}
+
+/// Private employee document metadata (files in private storage).
+model EmployeeDocument {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId    String   @map("employee_id") @db.Uuid
+  documentType  String   @map("document_type") @db.VarChar(60)
+  fileName      String   @map("file_name") @db.VarChar(255)
+  /// Private object key
+  storageKey    String   @map("storage_key")
+  mimeType      String   @map("mime_type") @db.VarChar(120)
+  /// SQL: CHECK (file_size_bytes > 0)
+  fileSizeBytes BigInt   @map("file_size_bytes")
+  uploadedBy    String   @map("uploaded_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  uploader User     @relation("EmployeeDocumentUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@map("employee_documents")
+}
