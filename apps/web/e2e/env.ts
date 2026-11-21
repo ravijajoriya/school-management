@@ -1,4 +1,6 @@
 import { config as loadEnv } from 'dotenv';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const API_DIR = fileURLToPath(new URL('../../api', import.meta.url));
@@ -30,5 +32,6 @@ export function apiTestEnv(): Record<string, string> {
     CORS_ORIGINS: `http://localhost:${WEB_PORT}`,
     COOKIE_SECURE: 'false',
     LOG_LEVEL: 'fatal',
+    STORAGE_DIR: join(tmpdir(), 'school-management-browser-e2e-storage'),
   };
 }

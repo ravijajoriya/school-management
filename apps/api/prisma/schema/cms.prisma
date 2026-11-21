@@ -1,0 +1,125 @@
+// Phase 2 — migration 003_public_cms
+
+/// Public website announcements. Public API returns only PUBLISHED rows inside their visibility window.
+model Announcement {
+  id        String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  title     String    @db.VarChar(180)
+  slug      String    @unique @db.VarChar(200)
+  body      String
+  /// SQL: CHECK (status IN ('DRAFT','PUBLISHED','ARCHIVED'))
+  status    String    @default("DRAFT") @db.VarChar(20)
+  publishAt DateTime? @map("publish_at") @db.Timestamptz(6)
+  /// SQL: CHECK (expires_at IS NULL OR publish_at IS NULL OR expires_at > publish_at)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdBy String    @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator User @relation("AnnouncementCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([status, publishAt])
+  @@map("announcements")
+}
+
+/// Private dashboard notices for signed-in staff, optionally targeted at one role.
+model InternalNotice {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  title            String    @db.VarChar(180)
+  body             String
+  /// e.g. TEACHER; null = all staff
+  audienceRoleCode String?   @map("audience_role_code") @db.VarChar(50)
+  publishAt        DateTime? @map("publish_at") @db.Timestamptz(6)
+  expiresAt        DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdBy        String    @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  creator User @relation("NoticeCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([publishAt])
+  @@map("internal_notices")
+}
+
+/// Public school events.
+model Event {
+  id          String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  title       String    @db.VarChar(180)
+  slug        String    @unique @db.VarChar(200)
+  description String?
+  venue       String?   @db.VarChar(160)
+  startsAt    DateTime  @map("starts_at") @db.Timestamptz(6)
+  /// SQL: CHECK (ends_at IS NULL OR ends_at >= starts_at)
+  endsAt      DateTime? @map("ends_at") @db.Timestamptz(6)
+  /// SQL: CHECK (status IN ('DRAFT','PUBLISHED','CANCELLED'))
+  status      String    @default("DRAFT") @db.VarChar(20)
+  createdBy   String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Added: last edit time (not in the PDF; consistent with other editable tables).
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator User @relation("EventCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([status, startsAt])
+  @@map("events")
+}
+
+/// Website image metadata (gallery, banners, page images). Files live in object storage.
+model MediaAsset {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  title         String?  @db.VarChar(160)
+  /// SQL: CHECK (category IN (...MEDIA_CATEGORIES))
+  category      String?  @db.VarChar(80)
+  storageKey    String   @map("storage_key")
+  mimeType      String   @map("mime_type") @db.VarChar(120)
+  /// SQL: CHECK (file_size_bytes > 0)
+  fileSizeBytes BigInt   @map("file_size_bytes")
+  altText       String?  @map("alt_text") @db.VarChar(255)
+  isPublic      Boolean  @default(true) @map("is_public")
+  uploadedBy    String   @map("uploaded_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  uploader User @relation("MediaUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([category, isPublic, createdAt])
+  @@map("media_assets")
+}
+
+/// Editable public page content (structured JSON validated by @school/shared schemas).
+model WebsitePage {
+  id                   String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  pageKey              String    @unique @map("page_key") @db.VarChar(80)
+  title                String    @db.VarChar(180)
+  /// Working draft edited in the CMS.
+  contentJson          Json      @map("content_json")
+  /// SQL: CHECK (status IN ('DRAFT','PUBLISHED'))
+  status               String    @default("DRAFT") @db.VarChar(20)
+  /// Added: the live version served publicly. Publishing copies content_json here.
+  publishedContentJson Json?     @map("published_content_json")
+  /// Added: when the live version was last published.
+  publishedAt          DateTime? @map("published_at") @db.Timestamptz(6)
+  updatedBy            String    @map("updated_by") @db.Uuid
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  editor User @relation("PageEditor", fields: [updatedBy], references: [id], onDelete: Restrict)
+
+  @@map("website_pages")
+}
+
+/// Added (not in the PDF): messages from the Contact page "Send Us a Message" form.
+model ContactMessage {
+  id        String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  fullName  String    @map("full_name") @db.VarChar(160)
+  email     String    @db.VarChar(255)
+  phone     String    @db.VarChar(20)
+  message   String
+  /// SQL: CHECK (status IN ('NEW','READ','ARCHIVED'))
+  status    String    @default("NEW") @db.VarChar(20)
+  handledBy String?   @map("handled_by") @db.Uuid
+  handledAt DateTime? @map("handled_at") @db.Timestamptz(6)
+  createdIp String?   @map("created_ip") @db.Inet
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  handler User? @relation("ContactMessageHandler", fields: [handledBy], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@map("contact_messages")
+}

@@ -12,10 +12,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Mirror the in-memory session (updated by login, refresh and the 401 interceptor),
   // and on first load restore the session from the refresh cookie, if there is one.
   useEffect(() => {
+    let signedIn = false;
     const unsubscribe = session.subscribe((auth) => {
       setUser(auth?.user ?? null);
       setStatus(auth ? 'authenticated' : 'anonymous');
-      if (!auth) queryClient.clear();
+      // On sign-out, drop cached staff data. Public website data (['public', …]) is kept, and
+      // nothing is touched for anonymous visitors (that would cancel in-flight public requests).
+      if (!auth && signedIn) {
+        queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'public' });
+      }
+      signedIn = !!auth;
     });
     refreshSession().catch(() => session.set(null));
     return unsubscribe;

@@ -29,11 +29,12 @@ nvm use                                   # Node 26.13 (see .nvmrc)
 pnpm install                              # also generates the Prisma client
 cp apps/api/.env.example apps/api/.env    # then set DATABASE_URL, JWT_ACCESS_SECRET, SEED_ADMIN_*
 pnpm --filter @school/api prisma:migrate  # apply migrations to your local DB
-pnpm --filter @school/api db:seed         # roles, permissions, first admin (prints a temporary password)
+pnpm --filter @school/api db:seed         # roles, permissions, classes, starter website pages, first admin
 pnpm dev                                  # API on :3000, web on :5173
 ```
 
-- Web: http://localhost:5173 — staff login at `/login`, portals at `/admin` and `/teacher`
+- Web: http://localhost:5173 — public website; staff login at `/login`, portals at `/admin` and `/teacher`
+- Uploaded images are stored in `apps/api/storage/` locally (`STORAGE_DIR`; git-ignored)
 - API docs (Swagger): http://localhost:3000/api/v1/docs
 - Health: `/api/v1/health/live`, `/api/v1/health/ready`
 
@@ -60,7 +61,7 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions)
 - `docs/erd/` — entity-relationship diagrams per phase
 - `docs/design/` — approved UI designs
 

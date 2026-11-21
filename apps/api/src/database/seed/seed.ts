@@ -1,6 +1,12 @@
-import { PERMISSION_DEFINITIONS, ROLE_CODES } from '@school/shared';
+import {
+  PAGE_CONTENT_SCHEMAS,
+  PAGE_KEYS,
+  PERMISSION_DEFINITIONS,
+  ROLE_CODES,
+} from '@school/shared';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import { PasswordService } from '../../modules/auth/password.service.js';
+import { DEFAULT_CLASSES, DEFAULT_PAGES } from './default-content.js';
 
 export interface SeedAccount {
   fullName: string;
@@ -41,6 +47,7 @@ const SYSTEM_ROLES = [
  *  - upserts every permission defined in @school/shared
  *  - upserts the system roles and keeps ADMIN holding every permission
  *  - creates the first admin (and optional teacher) account if missing
+ *  - creates the class catalogue and starter website pages if missing (never overwrites edits)
  */
 export async function seedDatabase(
   prisma: PrismaClient,
@@ -122,7 +129,56 @@ export async function seedDatabase(
     }
   }
 
+  await seedClasses(prisma, log);
+  await seedWebsitePages(prisma, log);
+
   return result;
+}
+
+async function seedClasses(prisma: PrismaClient, log: (m: string) => void) {
+  const existing = await prisma.class.count();
+  if (existing > 0) return;
+  await prisma.class.createMany({
+    data: DEFAULT_CLASSES.map((name, levelOrder) => ({ name, levelOrder })),
+  });
+  log(`Classes created: ${DEFAULT_CLASSES.join(', ')}`);
+}
+
+/** Starter content is published immediately so the public site works out of the box. */
+async function seedWebsitePages(prisma: PrismaClient, log: (m: string) => void) {
+  const admin = await prisma.user.findFirst({
+    where: { roles: { some: { role: { code: ROLE_CODES.ADMIN } } } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+  if (!admin) {
+    log('Website pages skipped: they need an admin account as the author.');
+    return;
+  }
+  const created: string[] = [];
+  for (const key of PAGE_KEYS) {
+    const exists = await prisma.websitePage.findUnique({
+      where: { pageKey: key },
+      select: { id: true },
+    });
+    if (exists) continue;
+    const page = DEFAULT_PAGES[key];
+    // Fail loudly if the starter content ever drifts from the schema.
+    const content = PAGE_CONTENT_SCHEMAS[key].parse(page.content) as object;
+    await prisma.websitePage.create({
+      data: {
+        pageKey: key,
+        title: page.title,
+        contentJson: content,
+        publishedContentJson: content,
+        publishedAt: new Date(),
+        status: 'PUBLISHED',
+        updatedBy: admin.id,
+      },
+    });
+    created.push(key);
+  }
+  if (created.length) log(`Website pages created: ${created.join(', ')}`);
 }
 
 async function createAccount(
