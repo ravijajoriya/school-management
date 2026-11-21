@@ -25,6 +25,7 @@ model Examination {
 
   @@unique([academicYearId, classId, name])
   @@index([academicYearId, status])
+  @@index([gradingScaleId])
   @@map("examinations")
 }
 
@@ -152,5 +153,6 @@ model TimetableEntry {
 
   @@unique([timetableId, dayOfWeek, periodNumber])
   @@index([teacherEmployeeId, dayOfWeek])
+  @@index([classSubjectId])
   @@map("timetable_entries")
 }

@@ -84,6 +84,7 @@ model StudentTransport {
 
   @@index([studentEnrolmentId])
   @@index([routeId, endDate])
+  @@index([routeStopId])
   @@map("student_transport")
 }
 

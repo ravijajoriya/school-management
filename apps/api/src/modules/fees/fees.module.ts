@@ -274,5 +274,6 @@ export class FeesController {
 @Module({
   controllers: [FeesController],
   providers: [FeeConfigService, FeeLedgerService, PaymentsService, FeeReportsService],
+  exports: [FeeLedgerService, PaymentsService, FeeReportsService],
 })
 export class FeesModule {}

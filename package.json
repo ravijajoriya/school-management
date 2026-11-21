@@ -17,6 +17,10 @@
     "test:e2e": "turbo run test:e2e --concurrency=1",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "backup": "pnpm --filter @school/api backup",
+    "backup:list": "pnpm --filter @school/api backup:list",
+    "backup:drill": "pnpm --filter @school/api backup:drill",
+    "restore": "pnpm --filter @school/api restore",
     "demo:seed": "pnpm --filter @school/api demo:seed",
     "demo:clear": "pnpm --filter @school/api demo:clear",
     "demo:status": "pnpm --filter @school/api demo:status"

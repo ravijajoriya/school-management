@@ -14,6 +14,7 @@ import {
 import { errorMessages } from '@/lib/api-client';
 import { formatDate } from '@/lib/format';
 import { useExamProgress, useReportCard, useSectionResults } from '../exams-api';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 const RESULT_TONE: Record<ResultStatus, 'green' | 'red' | 'amber'> = {
   PASS: 'green',
@@ -70,6 +71,9 @@ export function SectionResultsPage() {
                 </option>
               ))}
             </Select>
+            {sectionId && (
+              <ExportButtons report="exam-results" params={{ examinationId: id, sectionId }} />
+            )}
             <Button variant="secondary" onClick={() => window.print()}>
               <Printer className="h-4 w-4" aria-hidden="true" /> Print
             </Button>

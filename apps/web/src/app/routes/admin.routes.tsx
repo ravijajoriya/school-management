@@ -206,6 +206,17 @@ const ADMIN_NAV: PortalNavItem[] = [
     section: 'Admissions',
   },
   {
+    to: '/admin/reports',
+    label: 'Reports & Exports',
+    section: 'Administration',
+  },
+  {
+    to: '/admin/imports',
+    label: 'Import Data',
+    permissions: [PERMISSIONS.DATA_IMPORT],
+    section: 'Administration',
+  },
+  {
     to: '/admin/notices',
     label: 'Staff Notices',
     permissions: [PERMISSIONS.NOTICES_MANAGE],
@@ -350,6 +361,15 @@ export const adminRoutes: RouteObject = {
         })),
         guarded('fees/heads', PERMISSIONS.FEES_READ, async () => ({
           Component: (await feeSetup()).FeeHeadsPage,
+        })),
+        {
+          path: 'reports',
+          lazy: async () => ({
+            Component: (await import('@/features/reports/pages/ReportsPages')).ReportsPage,
+          }),
+        },
+        guarded('imports', PERMISSIONS.DATA_IMPORT, async () => ({
+          Component: (await import('@/features/reports/pages/ImportPage')).ImportPage,
         })),
         guarded('transport', PERMISSIONS.TRANSPORT_READ, async () => ({
           Component: (await transport()).RoutesPage,

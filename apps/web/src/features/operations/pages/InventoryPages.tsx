@@ -36,6 +36,7 @@ import {
   useSaveInventoryCategory,
   useSaveInventoryItem,
 } from '../operations-api';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 const CONDITION_TONE: Record<ItemCondition, 'green' | 'amber' | 'red' | 'gray'> = {
   GOOD: 'green',
@@ -84,16 +85,19 @@ export function InventoryPage() {
         title="Inventory"
         description="The school's asset register: furniture, IT, lab and sports equipment, and where it is."
         actions={
-          manage && (
-            <>
-              <Button variant="secondary" onClick={() => setManagingCategories(true)}>
-                Categories
-              </Button>
-              <Button onClick={() => setEditing('new')} disabled={!categories.data?.length}>
-                New item
-              </Button>
-            </>
-          )
+          <>
+            <ExportButtons report="inventory" params={{ categoryId: categoryId || undefined }} />
+            {manage && (
+              <>
+                <Button variant="secondary" onClick={() => setManagingCategories(true)}>
+                  Categories
+                </Button>
+                <Button onClick={() => setEditing('new')} disabled={!categories.data?.length}>
+                  New item
+                </Button>
+              </>
+            )}
+          </>
         }
       />
       {summary.data && summary.data.categories.length > 0 && (

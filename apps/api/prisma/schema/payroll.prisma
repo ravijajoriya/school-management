@@ -76,5 +76,6 @@ model PayrollItem {
   component SalaryComponent @relation(fields: [salaryComponentId], references: [id], onDelete: Restrict)
 
   @@unique([payrollRecordId, salaryComponentId])
+  @@index([salaryComponentId])
   @@map("payroll_items")
 }

@@ -1,13 +1,16 @@
-import { ENQUIRY_STATUS_LABELS, PERMISSIONS, type PermissionCode } from '@school/shared';
+import {
+  ENQUIRY_STATUS_LABELS,
+  PAYROLL_STATUS_LABELS,
+  PERMISSIONS,
+  formatRupees,
+  type PayrollStatus,
+  type PermissionCode,
+} from '@school/shared';
+import type { JSX } from 'react';
 import { Link } from 'react-router';
-import { Card, PageHeader } from '@/components/ui';
+import { Card, PageHeader, PageSpinner } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
-import { useDailyReport } from '@/features/attendance/attendance-api';
-import { useFeeSummary } from '@/features/fees/fees-api';
-import { useLeaveSummary } from '@/features/leave/leave-api';
-import { formatRupees } from '@school/shared';
-import { todayIso } from '@/lib/format';
-import { useEnquirySummary, useUnreadMessages } from '../cms-api';
+import { useOverview } from '@/features/reports/reports-api';
 import { NoticeFeed } from '../components/NoticeFeed';
 
 const SHORTCUTS: { to: string; title: string; text: string; permission: PermissionCode }[] = [
@@ -39,11 +42,150 @@ const SHORTCUTS: { to: string; title: string; text: string; permission: Permissi
 
 export function AdminDashboardPage() {
   const { user, can } = useAuth();
-  const summary = useEnquirySummary(can(PERMISSIONS.ENQUIRIES_READ));
-  const unread = useUnreadMessages(can(PERMISSIONS.CONTACT_MESSAGES_MANAGE));
-  const attendance = useDailyReport(todayIso(), can(PERMISSIONS.ATTENDANCE_READ));
-  const leave = useLeaveSummary(can(PERMISSIONS.LEAVE_READ));
-  const fees = useFeeSummary(can(PERMISSIONS.FEES_READ));
+  const overview = useOverview();
+  const o = overview.data;
+  const card = (show: unknown, props: Parameters<typeof StatCard>[0]) =>
+    show ? <StatCard key={props.label} {...props} /> : null;
+  const groups: { title: string; cards: (JSX.Element | null)[] }[] = o
+    ? [
+        {
+          title: 'Today',
+          cards: [
+            card(o.attendance, {
+              to: '/admin/attendance/daily',
+              label: 'Attendance today',
+              value:
+                o.attendance?.percentage === null || !o.attendance
+                  ? '—'
+                  : `${o.attendance.percentage}%`,
+            }),
+            card(o.attendance, {
+              to: '/admin/attendance/daily',
+              label: 'Classes not marked today',
+              value: o.attendance?.sectionsNotMarked ?? 0,
+              highlight: (o.attendance?.sectionsNotMarked ?? 0) > 0,
+            }),
+            card(o.leave, {
+              to: '/admin/leave',
+              label: 'Leave requests to review',
+              value: o.leave?.pending ?? 0,
+              highlight: (o.leave?.pending ?? 0) > 0,
+            }),
+            card(o.leave, {
+              to: '/admin/leave',
+              label: 'Staff on leave today',
+              value: o.leave?.onLeaveToday.length ?? 0,
+            }),
+          ],
+        },
+        {
+          title: 'Fees',
+          cards: [
+            card(o.fees, {
+              to: '/admin/fees/payments',
+              label: 'Fees collected today',
+              value: formatRupees(o.fees?.collectedToday ?? 0),
+            }),
+            card(o.fees, {
+              to: '/admin/fees/payments',
+              label: 'Receipts today',
+              value: o.fees?.receiptsToday ?? 0,
+            }),
+            card(o.fees, {
+              to: '/admin/fees/reports',
+              label: 'Overdue fees',
+              value: formatRupees(o.fees?.overdueBalance ?? 0),
+              highlight: (o.fees?.overdueBalance ?? 0) > 0,
+            }),
+            card(o.fees, {
+              to: '/admin/fees/payments',
+              label: 'Cheques awaiting clearance',
+              value: o.fees?.chequesPending ?? 0,
+              highlight: (o.fees?.chequesPending ?? 0) > 0,
+            }),
+          ],
+        },
+        {
+          title: 'Students & admissions',
+          cards: [
+            card(o.students, {
+              to: '/admin/reports',
+              label: `Students${o.students?.academicYear ? ` (${o.students.academicYear})` : ''}`,
+              value: o.students?.active ?? 0,
+            }),
+            card(o.students, {
+              to: '/admin/students',
+              label: 'New admissions this month',
+              value: o.students?.newThisMonth ?? 0,
+            }),
+            card(o.enquiries, {
+              to: '/admin/enquiries',
+              label: 'New enquiries',
+              value: o.enquiries?.byStatus.NEW ?? 0,
+              highlight: (o.enquiries?.byStatus.NEW ?? 0) > 0,
+            }),
+            card(o.enquiries, {
+              to: '/admin/enquiries',
+              label: 'Follow-ups due',
+              value: o.enquiries?.dueFollowUps ?? 0,
+              highlight: (o.enquiries?.dueFollowUps ?? 0) > 0,
+            }),
+            card(o.enquiries, {
+              to: '/admin/enquiries',
+              label: ENQUIRY_STATUS_LABELS.ADMISSION_CONFIRMED,
+              value: o.enquiries?.byStatus.ADMISSION_CONFIRMED ?? 0,
+            }),
+            card(o.unreadMessages !== null, {
+              to: '/admin/messages',
+              label: 'Unread messages',
+              value: o.unreadMessages ?? 0,
+              highlight: (o.unreadMessages ?? 0) > 0,
+            }),
+          ],
+        },
+        {
+          title: 'Academics & operations',
+          cards: [
+            card(o.exams, {
+              to: '/admin/exams',
+              label: 'Marks awaiting approval',
+              value: o.exams?.marksAwaitingApproval ?? 0,
+              highlight: (o.exams?.marksAwaitingApproval ?? 0) > 0,
+            }),
+            card(o.complaints, {
+              to: '/admin/complaints',
+              label: 'Open complaints',
+              value: (o.complaints?.open ?? 0) + (o.complaints?.inProgress ?? 0),
+              highlight: (o.complaints?.open ?? 0) > 0,
+            }),
+            card(o.meetings, {
+              to: '/admin/meetings',
+              label: 'Parent meetings (next 7 days)',
+              value: o.meetings?.next7Days ?? 0,
+            }),
+            card(o.transport, {
+              to: '/admin/transport/vehicles',
+              label: 'Vehicle renewals due',
+              value: o.transport?.vehiclesDue ?? 0,
+              highlight: (o.transport?.vehiclesDue ?? 0) > 0,
+            }),
+            card(o.inventory, {
+              to: '/admin/inventory',
+              label: 'Assets needing repair',
+              value: o.inventory?.needsAttention ?? 0,
+              highlight: (o.inventory?.needsAttention ?? 0) > 0,
+            }),
+            card(o.payroll, {
+              to: '/admin/payroll',
+              label: 'Payroll this month',
+              value: o.payroll?.status
+                ? PAYROLL_STATUS_LABELS[o.payroll.status as PayrollStatus]
+                : 'Not started',
+            }),
+          ],
+        },
+      ]
+    : [];
 
   return (
     <div>
@@ -51,106 +193,18 @@ export function AdminDashboardPage() {
         title={`Welcome, ${user?.fullName ?? ''}`}
         description="School administration overview."
       />
-
-      {fees.data && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            to="/admin/fees/payments"
-            label="Fees collected today"
-            value={formatRupees(fees.data.collectedToday)}
-          />
-          <StatCard
-            to="/admin/fees/payments"
-            label="Receipts today"
-            value={fees.data.receiptsToday}
-          />
-          <StatCard
-            to="/admin/fees/reports"
-            label="Overdue fees"
-            value={formatRupees(fees.data.overdueBalance)}
-            highlight={fees.data.overdueBalance > 0}
-          />
-          <StatCard
-            to="/admin/fees/payments"
-            label="Cheques awaiting clearance"
-            value={fees.data.chequesPending}
-            highlight={fees.data.chequesPending > 0}
-          />
-        </div>
-      )}
-
-      {(attendance.data?.academicYear || leave.data) && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {attendance.data?.academicYear && (
-            <>
-              <StatCard
-                to="/admin/attendance/daily"
-                label="Attendance today"
-                value={
-                  attendance.data.totals.percentage === null
-                    ? '—'
-                    : `${attendance.data.totals.percentage}%`
-                }
-              />
-              <StatCard
-                to="/admin/attendance/daily"
-                label="Classes not marked today"
-                value={attendance.data.sectionsNotMarked}
-                highlight={attendance.data.sectionsNotMarked > 0}
-              />
-            </>
-          )}
-          {leave.data && (
-            <>
-              <StatCard
-                to="/admin/leave"
-                label="Leave requests to review"
-                value={leave.data.pending}
-                highlight={leave.data.pending > 0}
-              />
-              <StatCard
-                to="/admin/leave"
-                label="Staff on leave today"
-                value={leave.data.onLeaveToday.length}
-              />
-            </>
-          )}
-        </div>
-      )}
-
-      {(summary.data || unread.data !== undefined) && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {summary.data && (
-            <>
-              <StatCard
-                to="/admin/enquiries"
-                label="New enquiries"
-                value={summary.data.byStatus.NEW}
-                highlight={summary.data.byStatus.NEW > 0}
-              />
-              <StatCard
-                to="/admin/enquiries"
-                label="Follow-ups due"
-                value={summary.data.dueFollowUps}
-                highlight={summary.data.dueFollowUps > 0}
-              />
-              <StatCard
-                to="/admin/enquiries"
-                label={ENQUIRY_STATUS_LABELS.ADMISSION_CONFIRMED}
-                value={summary.data.byStatus.ADMISSION_CONFIRMED}
-              />
-            </>
-          )}
-          {unread.data !== undefined && (
-            <StatCard
-              to="/admin/messages"
-              label="Unread messages"
-              value={unread.data}
-              highlight={unread.data > 0}
-            />
-          )}
-        </div>
-      )}
+      {overview.isLoading && <PageSpinner />}
+      {groups
+        .map((g) => ({ ...g, cards: g.cards.filter(Boolean) }))
+        .filter((g) => g.cards.length)
+        .map((g) => (
+          <section key={g.title} className="mb-6" aria-label={g.title}>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+              {g.title}
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{g.cards}</div>
+          </section>
+        ))}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="grid h-fit gap-4 sm:grid-cols-2">

@@ -93,5 +93,6 @@ export class LeaveController {
 @Module({
   controllers: [LeaveController],
   providers: [LeaveService],
+  exports: [LeaveService],
 })
 export class LeaveModule {}

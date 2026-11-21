@@ -20,5 +20,6 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId, createdAt])
   @@index([createdAt])
+  @@index([action, createdAt])
   @@map("audit_logs")
 }

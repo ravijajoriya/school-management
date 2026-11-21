@@ -73,6 +73,9 @@ export const PERMISSIONS = {
   CERTIFICATES_ISSUE: 'certificates.issue',
   CERTIFICATES_TEMPLATES: 'certificates.manage_templates',
   ID_CARDS_GENERATE: 'id_cards.generate',
+
+  // Phase 8 — reports & hardening
+  DATA_IMPORT: 'data_import.run',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -270,6 +273,11 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     code: PERMISSIONS.ID_CARDS_GENERATE,
     name: 'Design ID card templates and print student and staff ID cards',
     module: 'id_cards',
+  },
+  {
+    code: PERMISSIONS.DATA_IMPORT,
+    name: 'Import students, staff and opening fee balances from spreadsheets',
+    module: 'data_import',
   },
 ];
 

@@ -102,6 +102,6 @@ export class AttendanceController {
   imports: [AcademicsModule],
   controllers: [AttendanceController],
   providers: [AttendanceService, AttendanceReportsService],
-  exports: [AttendanceService],
+  exports: [AttendanceService, AttendanceReportsService],
 })
 export class AttendanceModule {}
