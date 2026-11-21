@@ -1,0 +1,57 @@
+// Phase 4 — attendance & teacher leave (migrations 011_attendance, 012_leave).
+
+/// One attendance outcome per student enrolment, date and session. The same rows serve the
+/// whole-class sheet and single-student marking. Never deleted; corrections update the row and
+/// are recorded in audit_logs.
+model AttendanceRecord {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentEnrolmentId String    @map("student_enrolment_id") @db.Uuid
+  attendanceDate     DateTime  @map("attendance_date") @db.Date
+  /// SQL: CHECK (session_code IN ('FULL_DAY','MORNING','AFTERNOON')) — only FULL_DAY is used for now
+  sessionCode        String    @default("FULL_DAY") @map("session_code") @db.VarChar(20)
+  /// SQL: CHECK (status IN ('PRESENT','ABSENT','LATE'))
+  status             String    @db.VarChar(20)
+  remarks            String?   @db.VarChar(255)
+  markedBy           String    @map("marked_by") @db.Uuid
+  markedAt           DateTime  @default(now()) @map("marked_at") @db.Timestamptz(6)
+  /// SQL: CHECK ((updated_by IS NULL) = (updated_at IS NULL))
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  updatedAt          DateTime? @map("updated_at") @db.Timestamptz(6)
+  /// Required by the API for any change after the day itself (office corrections).
+  correctionReason   String?   @map("correction_reason")
+
+  enrolment StudentEnrolment @relation(fields: [studentEnrolmentId], references: [id], onDelete: Restrict)
+  marker    User             @relation("AttendanceMarkedBy", fields: [markedBy], references: [id], onDelete: Restrict)
+  updater   User?            @relation("AttendanceUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+
+  @@unique([studentEnrolmentId, attendanceDate, sessionCode], map: "attendance_records_enrolment_date_session_key")
+  @@index([attendanceDate])
+  @@map("attendance_records")
+}
+
+/// Teacher leave applications and their review.
+model LeaveRequest {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId    String    @map("employee_id") @db.Uuid
+  /// SQL: CHECK (leave_type IN ('CASUAL','SICK','EARNED','MATERNITY','ON_DUTY','UNPAID','OTHER'))
+  leaveType     String    @map("leave_type") @db.VarChar(40)
+  startDate     DateTime  @map("start_date") @db.Date
+  /// SQL: CHECK (end_date >= start_date)
+  endDate       DateTime  @map("end_date") @db.Date
+  reason        String
+  /// SQL: CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED'));
+  /// approved/rejected rows must have reviewed_by and reviewed_at.
+  /// SQL: EXCLUDE no overlapping PENDING/APPROVED requests for the same employee (btree_gist)
+  status        String    @default("PENDING") @db.VarChar(20)
+  reviewedBy    String?   @map("reviewed_by") @db.Uuid
+  reviewedAt    DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewRemarks String?   @map("review_remarks")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  reviewer User?    @relation("LeaveReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, startDate])
+  @@index([status, startDate])
+  @@map("leave_requests")
+}

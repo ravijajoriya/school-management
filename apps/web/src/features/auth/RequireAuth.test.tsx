@@ -41,15 +41,26 @@ describe('RequireAuth', () => {
     expect(screen.queryByText('secret content')).not.toBeInTheDocument();
   });
 
-  it('keeps teachers out of the admin area', () => {
+  it.each([
+    ['no permissions', []],
+    ['only self-service permissions', ['attendance.mark_assigned', 'leave.apply']],
+  ] as const)('keeps teachers with %s out of the admin area', (_label, permissions) => {
     renderRoutes(routes(<RequireAuth adminArea />), {
-      auth: makeAuth({ user: makeUser({ roles: ['TEACHER'], permissions: [] }) }),
+      auth: makeAuth({ user: makeUser({ roles: ['TEACHER'], permissions: [...permissions] }) }),
       initialPath: '/secret',
     });
     expect(screen.getByRole('link', { name: 'Go to your dashboard' })).toHaveAttribute(
       'href',
       '/teacher',
     );
+  });
+
+  it('lets office staff with an administrative permission into the admin area', () => {
+    renderRoutes(routes(<RequireAuth adminArea />), {
+      auth: makeAuth({ user: makeUser({ roles: ['OFFICE'], permissions: ['attendance.read'] }) }),
+      initialPath: '/secret',
+    });
+    expect(screen.getByText('secret content')).toBeInTheDocument();
   });
 
   it('renders the page when the user has every required permission', () => {

@@ -35,6 +35,7 @@ import { errorMessages, splitFieldErrors } from '@/lib/api-client';
 import { formatDate, todayIso } from '@/lib/format';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useRoles, useUsers } from '../api';
+import { LeaveHistoryCard } from '@/features/leave/LeaveHistoryCard';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { RoleCheckboxes } from '../components/RoleCheckboxes';
 import { TemporaryPasswordModal } from '../components/TemporaryPasswordModal';
@@ -386,6 +387,7 @@ export function EmployeeDetailPage() {
             canManage={manage}
             canDownload={manage}
           />
+          {can(PERMISSIONS.LEAVE_READ) && <LeaveHistoryCard employeeId={e.id} />}
         </div>
         <Card className="h-fit space-y-3 p-5">
           <h2 className="font-semibold text-brand-navy">Login</h2>

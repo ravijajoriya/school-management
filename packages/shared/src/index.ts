@@ -12,3 +12,5 @@ export * from './schemas/contact.js';
 export * from './schemas/academics.js';
 export * from './schemas/staff.js';
 export * from './schemas/students.js';
+export * from './schemas/attendance.js';
+export * from './schemas/leave.js';

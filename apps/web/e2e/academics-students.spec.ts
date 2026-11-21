@@ -116,8 +116,11 @@ test.describe('Academics, staff & students', () => {
     const teacherContext = await browser.newContext();
     const teacher = await teacherContext.newPage();
     await signIn(teacher, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
-    await expect(teacher.getByRole('link', { name: /Class 1 – A/ })).toContainText('Class teacher');
+    // Dashboard: "Today's attendance" and "Your classes" both list the section.
+    await expect(teacher.getByRole('link', { name: /Class 1 – A.*Class teacher/ })).toBeVisible();
+    await expect(teacher.getByRole('link', { name: /Class 1 – A.*Mark today/ })).toBeVisible();
     await teacher.getByRole('navigation').getByRole('link', { name: 'My classes' }).click();
+    await expect(teacher).toHaveURL(/\/teacher\/classes$/);
     await teacher.getByRole('link', { name: /Class 1 – A/ }).click();
     await expect(teacher.getByRole('row', { name: /Aarav Sharma/ })).toContainText('Ramesh Sharma');
     await teacher.goto('/admin/students');

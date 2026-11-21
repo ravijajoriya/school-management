@@ -2,6 +2,9 @@ import { ENQUIRY_STATUS_LABELS, PERMISSIONS, type PermissionCode } from '@school
 import { Link } from 'react-router';
 import { Card, PageHeader } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
+import { useDailyReport } from '@/features/attendance/attendance-api';
+import { useLeaveSummary } from '@/features/leave/leave-api';
+import { todayIso } from '@/lib/format';
 import { useEnquirySummary, useUnreadMessages } from '../cms-api';
 import { NoticeFeed } from '../components/NoticeFeed';
 
@@ -36,6 +39,8 @@ export function AdminDashboardPage() {
   const { user, can } = useAuth();
   const summary = useEnquirySummary(can(PERMISSIONS.ENQUIRIES_READ));
   const unread = useUnreadMessages(can(PERMISSIONS.CONTACT_MESSAGES_MANAGE));
+  const attendance = useDailyReport(todayIso(), can(PERMISSIONS.ATTENDANCE_READ));
+  const leave = useLeaveSummary(can(PERMISSIONS.LEAVE_READ));
 
   return (
     <div>
@@ -43,6 +48,45 @@ export function AdminDashboardPage() {
         title={`Welcome, ${user?.fullName ?? ''}`}
         description="School administration overview."
       />
+
+      {(attendance.data?.academicYear || leave.data) && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {attendance.data?.academicYear && (
+            <>
+              <StatCard
+                to="/admin/attendance/daily"
+                label="Attendance today"
+                value={
+                  attendance.data.totals.percentage === null
+                    ? '—'
+                    : `${attendance.data.totals.percentage}%`
+                }
+              />
+              <StatCard
+                to="/admin/attendance/daily"
+                label="Classes not marked today"
+                value={attendance.data.sectionsNotMarked}
+                highlight={attendance.data.sectionsNotMarked > 0}
+              />
+            </>
+          )}
+          {leave.data && (
+            <>
+              <StatCard
+                to="/admin/leave"
+                label="Leave requests to review"
+                value={leave.data.pending}
+                highlight={leave.data.pending > 0}
+              />
+              <StatCard
+                to="/admin/leave"
+                label="Staff on leave today"
+                value={leave.data.onLeaveToday.length}
+              />
+            </>
+          )}
+        </div>
+      )}
 
       {(summary.data || unread.data !== undefined) && (
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -103,7 +147,7 @@ function StatCard({
 }: {
   to: string;
   label: string;
-  value: number;
+  value: number | string;
   highlight?: boolean;
 }) {
   return (

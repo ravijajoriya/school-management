@@ -76,13 +76,14 @@ model StudentEnrolment {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  student           Student           @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  academicYear      AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-  class             Class             @relation(fields: [classId], references: [id], onDelete: Restrict)
+  student           Student            @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  academicYear      AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class             Class              @relation(fields: [classId], references: [id], onDelete: Restrict)
   /// Composite FK: section, year and class must agree (class_id can never contradict the section).
-  section           Section           @relation(fields: [sectionId, academicYearId, classId], references: [id, academicYearId, classId], onDelete: Restrict)
-  previousEnrolment StudentEnrolment? @relation("EnrolmentContinuation", fields: [previousEnrolmentId], references: [id], onDelete: Restrict)
-  nextEnrolment     StudentEnrolment? @relation("EnrolmentContinuation")
+  section           Section            @relation(fields: [sectionId, academicYearId, classId], references: [id, academicYearId, classId], onDelete: Restrict)
+  previousEnrolment StudentEnrolment?  @relation("EnrolmentContinuation", fields: [previousEnrolmentId], references: [id], onDelete: Restrict)
+  nextEnrolment     StudentEnrolment?  @relation("EnrolmentContinuation")
+  attendance        AttendanceRecord[]
 
   @@unique([studentId, academicYearId])
   @@unique([sectionId, rollNumber])

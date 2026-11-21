@@ -61,7 +61,7 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave)
 - `docs/erd/` — entity-relationship diagrams per phase
 - `docs/design/` — approved UI designs
 

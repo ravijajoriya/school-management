@@ -36,6 +36,13 @@ const UNIQUE_MESSAGES: Record<string, string> = {
     'academicYearId: The student is already enrolled in this academic year',
   section_id_roll_number: 'rollNumber: This roll number is already used in the section',
   converted_student_id: 'This enquiry has already been converted',
+  enrolment_date_session:
+    'entries: Attendance for this day was just saved by someone else — reload and try again',
+};
+
+/** Messages for exclusion constraints (Postgres 23P01), keyed by constraint name. */
+const EXCLUSION_MESSAGES: Record<string, string> = {
+  leave_requests_no_overlap: 'startDate: This overlaps another pending or approved leave request',
 };
 
 /**
@@ -79,6 +86,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'This record already exists';
     } else if (
       exception instanceof Prisma.PrismaClientKnownRequestError &&
+      this.pgCode(exception) === '23P01'
+    ) {
+      statusCode = HttpStatus.CONFLICT;
+      error = 'Conflict';
+      const text = this.pgMessage(exception);
+      const name = Object.keys(EXCLUSION_MESSAGES).find((k) => text.includes(k));
+      message = name ? [EXCLUSION_MESSAGES[name]] : 'This conflicts with an existing record';
+    } else if (
+      exception instanceof Prisma.PrismaClientKnownRequestError &&
       exception.code === 'P2025'
     ) {
       statusCode = HttpStatus.NOT_FOUND;
@@ -101,6 +117,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   /** Extracts the violated column names from a P2002 error (shape differs across drivers). */
+  private pgCause(error: Prisma.PrismaClientKnownRequestError) {
+    const meta = error.meta as
+      { driverAdapterError?: { cause?: { code?: string; message?: string } } } | undefined;
+    return meta?.driverAdapterError?.cause;
+  }
+
+  private pgCode(error: Prisma.PrismaClientKnownRequestError) {
+    return this.pgCause(error)?.code;
+  }
+
+  private pgMessage(error: Prisma.PrismaClientKnownRequestError) {
+    return this.pgCause(error)?.message ?? '';
+  }
+
   private uniqueFields(error: Prisma.PrismaClientKnownRequestError): string[] {
     const meta = error.meta as
       | {

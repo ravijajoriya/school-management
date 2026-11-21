@@ -40,6 +40,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { errorMessages, splitFieldErrors } from '@/lib/api-client';
 import { formatDate, todayIso } from '@/lib/format';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { StudentAttendanceCard } from '@/features/attendance/components/AttendanceReports';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { YearPicker } from '../components/YearPicker';
 import {
@@ -706,6 +707,12 @@ function StudentDetailView({ student }: { student: StudentDetail }) {
             </table>
           )}
         </Card>
+
+        {can(PERMISSIONS.ATTENDANCE_READ) && (
+          <div className="lg:col-span-2">
+            <StudentAttendanceCard studentId={student.id} />
+          </div>
+        )}
 
         <div className="lg:col-span-2">
           <DocumentsPanel

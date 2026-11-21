@@ -66,6 +66,11 @@ model User {
   employeeDocumentsUploaded EmployeeDocument[] @relation("EmployeeDocumentUploader")
   studentDocumentsUploaded  StudentDocument[]  @relation("StudentDocumentUploader")
 
+  // Phase 4
+  attendanceMarked  AttendanceRecord[] @relation("AttendanceMarkedBy")
+  attendanceUpdated AttendanceRecord[] @relation("AttendanceUpdatedBy")
+  leaveReviewed     LeaveRequest[]     @relation("LeaveReviewer")
+
   @@map("users")
 }
 
