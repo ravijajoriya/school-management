@@ -27,21 +27,40 @@ docs/            design mock-ups, ADRs, ERD, phase notes
 ```bash
 nvm use                                   # Node 26.13 (see .nvmrc)
 pnpm install                              # also generates the Prisma client
-cp apps/api/.env.example apps/api/.env    # then set DATABASE_URL
+cp apps/api/.env.example apps/api/.env    # then set DATABASE_URL, JWT_ACCESS_SECRET, SEED_ADMIN_*
 pnpm --filter @school/api prisma:migrate  # apply migrations to your local DB
+pnpm --filter @school/api db:seed         # roles, permissions, first admin (prints a temporary password)
 pnpm dev                                  # API on :3000, web on :5173
 ```
 
-- Web: http://localhost:5173 (calls to `/api` are proxied to the API)
+- Web: http://localhost:5173 — staff login at `/login`, portals at `/admin` and `/teacher`
 - API docs (Swagger): http://localhost:3000/api/v1/docs
 - Health: `/api/v1/health/live`, `/api/v1/health/ready`
+
+The seed creates accounts only if they don't exist and prints each temporary password **once**;
+the user must change it at first sign-in. Forgot a password? An admin resets it from **Admin → Users**.
+
+## Tests
+
+- `pnpm test` — unit tests.
+- `pnpm test:e2e` — API end-to-end tests against a separate database. It uses `TEST_DATABASE_URL`,
+  or your `DATABASE_URL` with `_test` appended to the database name (create it once:
+  `createdb school_management_test`). Migrations are applied automatically; the tests refuse to run
+  against a database whose name doesn't end in `_test`.
+
+## Docs
+
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization)
+- `docs/erd/` — entity-relationship diagrams per phase
+- `docs/design/` — approved UI designs
 
 ## Common commands
 
 | Command                                       | What it does                             |
 | --------------------------------------------- | ---------------------------------------- |
 | `pnpm build` / `pnpm typecheck` / `pnpm lint` | Run across all packages                  |
-| `pnpm test`                                   | Unit tests (Vitest)                      |
+| `pnpm test` / `pnpm test:e2e`                 | Unit tests / API end-to-end tests        |
+| `pnpm --filter @school/api db:seed`           | Sync roles & permissions, create admin   |
 | `pnpm --filter @school/api prisma:migrate`    | Create/apply a migration in development  |
 | `pnpm --filter @school/api prisma:deploy`     | Apply migrations on staging / production |
 | `pnpm --filter @school/api prisma:studio`     | Browse the database                      |

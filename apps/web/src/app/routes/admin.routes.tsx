@@ -1,22 +1,70 @@
+import { PERMISSIONS } from '@school/shared';
 import type { RouteObject } from 'react-router';
-import { PlaceholderPage } from '@/components/common/PlaceholderPage';
+import { RequireAuth } from '@/features/auth/RequireAuth';
 import { PortalLayout, type PortalNavItem } from '@/layouts/PortalLayout';
 
 const ADMIN_NAV: PortalNavItem[] = [
   { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/roles', label: 'Roles & Permissions' },
-  { to: '/admin/audit-logs', label: 'Audit Logs' },
+  { to: '/admin/users', label: 'Users', permissions: [PERMISSIONS.USERS_READ] },
+  { to: '/admin/roles', label: 'Roles & Permissions', permissions: [PERMISSIONS.ROLES_READ] },
+  { to: '/admin/audit-logs', label: 'Audit Logs', permissions: [PERMISSIONS.AUDIT_LOGS_READ] },
 ];
 
-/** Admin portal — will be wrapped by an auth + permission guard in the auth step. */
+/**
+ * Admin portal. Pages are lazy-loaded so public-website visitors never download portal code.
+ * Every page re-checks its permission here; the API enforces the same rules independently.
+ */
 export const adminRoutes: RouteObject = {
   path: 'admin',
-  element: <PortalLayout title="Admin Portal" nav={ADMIN_NAV} />,
+  element: <RequireAuth adminArea />,
   children: [
-    { index: true, element: <PlaceholderPage title="Dashboard" phase="Phase 1" /> },
-    { path: 'users', element: <PlaceholderPage title="Users" phase="Phase 1" /> },
-    { path: 'roles', element: <PlaceholderPage title="Roles & Permissions" phase="Phase 1" /> },
-    { path: 'audit-logs', element: <PlaceholderPage title="Audit Logs" phase="Phase 1" /> },
+    {
+      element: <PortalLayout title="Admin Portal" nav={ADMIN_NAV} />,
+      children: [
+        {
+          index: true,
+          lazy: async () => ({
+            Component: (await import('@/features/admin/pages/AdminDashboardPage'))
+              .AdminDashboardPage,
+          }),
+        },
+        {
+          path: 'users',
+          element: <RequireAuth permissions={[PERMISSIONS.USERS_READ]} />,
+          children: [
+            {
+              index: true,
+              lazy: async () => ({
+                Component: (await import('@/features/admin/pages/UsersPage')).UsersPage,
+              }),
+            },
+          ],
+        },
+        {
+          path: 'roles',
+          element: <RequireAuth permissions={[PERMISSIONS.ROLES_READ]} />,
+          children: [
+            {
+              index: true,
+              lazy: async () => ({
+                Component: (await import('@/features/admin/pages/RolesPage')).RolesPage,
+              }),
+            },
+          ],
+        },
+        {
+          path: 'audit-logs',
+          element: <RequireAuth permissions={[PERMISSIONS.AUDIT_LOGS_READ]} />,
+          children: [
+            {
+              index: true,
+              lazy: async () => ({
+                Component: (await import('@/features/admin/pages/AuditLogsPage')).AuditLogsPage,
+              }),
+            },
+          ],
+        },
+      ],
+    },
   ],
 };

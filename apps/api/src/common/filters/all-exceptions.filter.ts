@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Prisma } from '../../generated/prisma/client.js';
 
 /** Uniform error body returned by every endpoint. */
 export interface ApiErrorBody {
@@ -17,6 +18,13 @@ export interface ApiErrorBody {
   timestamp: string;
   requestId?: string;
 }
+
+/** Human-readable messages for unique constraints, keyed by column. */
+const UNIQUE_MESSAGES: Record<string, string> = {
+  email: 'email: This email address is already in use',
+  phone: 'phone: This phone number is already in use',
+  code: 'code: This code is already in use',
+};
 
 /**
  * Converts any thrown error into the uniform `ApiErrorBody`.
@@ -47,6 +55,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = b.message ?? exception.message;
         error = b.error ?? exception.name;
       }
+    } else if (
+      exception instanceof Prisma.PrismaClientKnownRequestError &&
+      exception.code === 'P2002'
+    ) {
+      statusCode = HttpStatus.CONFLICT;
+      error = 'Conflict';
+      const fields = this.uniqueFields(exception);
+      message = fields.length
+        ? fields.map((f) => UNIQUE_MESSAGES[f] ?? `${f}: This value is already in use`)
+        : 'This record already exists';
+    } else if (
+      exception instanceof Prisma.PrismaClientKnownRequestError &&
+      exception.code === 'P2025'
+    ) {
+      statusCode = HttpStatus.NOT_FOUND;
+      error = 'Not Found';
+      message = 'Record not found';
     } else {
       this.logger.error(exception instanceof Error ? exception.stack : String(exception));
     }
@@ -61,5 +86,32 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     response.status(statusCode).json(payload);
+  }
+
+  /** Extracts the violated column names from a P2002 error (shape differs across drivers). */
+  private uniqueFields(error: Prisma.PrismaClientKnownRequestError): string[] {
+    const meta = error.meta as
+      | {
+          target?: string[] | string;
+          driverAdapterError?: {
+            cause?: { table?: string; constraint?: { fields?: string[]; index?: string } };
+          };
+        }
+      | undefined;
+    const cause = meta?.driverAdapterError?.cause;
+    if (Array.isArray(cause?.constraint?.fields)) {
+      return cause.constraint.fields.map((f) => f.replace(/"/g, ''));
+    }
+    // pg adapter reports the index name, e.g. users_email_key -> email.
+    const index = cause?.constraint?.index;
+    if (index) {
+      const prefix = cause?.table ? `${cause.table}_` : '';
+      return [index.replace(prefix, '').replace(/_key$/, '')];
+    }
+    if (Array.isArray(meta?.target)) return meta.target;
+    if (typeof meta?.target === 'string') {
+      return Object.keys(UNIQUE_MESSAGES).filter((k) => meta.target!.includes(k));
+    }
+    return [];
   }
 }
