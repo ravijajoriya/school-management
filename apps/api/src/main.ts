@@ -1,28 +1,19 @@
-import { StandardSchemaValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
+import { configureApp } from './app.setup.js';
 import type { Env } from './config/env.schema.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+  configureApp(app);
 
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   const prefix = config.get('API_PREFIX', { infer: true });
-
-  app.use(helmet());
-  app.enableCors({
-    origin: config.get('CORS_ORIGINS', { infer: true }),
-    credentials: true,
-  });
-  app.setGlobalPrefix(prefix);
-  // Validates any @Body/@Query/@Param that declares a Zod (Standard Schema) `schema`.
-  app.useGlobalPipes(new StandardSchemaValidationPipe());
-  app.enableShutdownHooks();
 
   if (config.get('NODE_ENV', { infer: true }) !== 'production') {
     const swaggerConfig = new DocumentBuilder()
