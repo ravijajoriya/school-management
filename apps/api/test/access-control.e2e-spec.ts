@@ -60,7 +60,11 @@ describe('Users, roles & permissions (e2e)', () => {
         .get(`${API}/auth/me`)
         .set(bearer(teacherToken))
         .expect(200);
-      expect(res.body).toMatchObject({ email: TEACHER.email, roles: ['TEACHER'], permissions: [] });
+      expect(res.body).toMatchObject({
+        email: TEACHER.email,
+        roles: ['TEACHER'],
+        permissions: ['attendance.mark_assigned', 'leave.apply'],
+      });
     });
 
     it('rejects tampered tokens', async () => {

@@ -65,6 +65,13 @@ export const AUDIT_ACTIONS = {
   DOCUMENT_UPLOADED: 'document.uploaded',
   DOCUMENT_DELETED: 'document.deleted',
   DOCUMENT_DOWNLOADED: 'document.downloaded',
+  // Phase 4
+  ATTENDANCE_MARKED: 'attendance.marked',
+  ATTENDANCE_CORRECTED: 'attendance.corrected',
+  LEAVE_REQUESTED: 'leave.requested',
+  LEAVE_APPROVED: 'leave.approved',
+  LEAVE_REJECTED: 'leave.rejected',
+  LEAVE_CANCELLED: 'leave.cancelled',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

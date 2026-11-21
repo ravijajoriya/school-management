@@ -13,6 +13,7 @@ import {
   type ListUsersQuery,
   type Paginated,
   type PasswordResetResponse,
+  SELF_SERVICE_PERMISSIONS,
   type PermissionCode,
   type UpdateUserData,
   type UserCreatedResponse,
@@ -66,6 +67,10 @@ const snapshot = (u: UserListItem) => ({
   status: u.status,
   roles: u.roles.map((r) => r.code),
 });
+
+/** A permission the actor lacks, ignoring teacher self-service permissions. */
+const exceedsActor = (actor: RequestUser, code: PermissionCode) =>
+  !SELF_SERVICE_PERMISSIONS.has(code) && !actor.permissions.has(code);
 
 @Injectable()
 export class UsersService {
@@ -291,7 +296,8 @@ export class UsersService {
   /*
    * Privilege-escalation guards. Holders of `roles.manage` (Admins) may do anything. Everyone
    * else may only assign roles, and manage users, whose permissions they already hold, and can
-   * never grant or touch the ADMIN role.
+   * never grant or touch the ADMIN role. Self-service permissions (own class attendance, own
+   * leave) are not counted, so a user manager can still manage teachers.
    */
   private async assertCanAssignRoles(
     actor: RequestUser,
@@ -301,8 +307,8 @@ export class UsersService {
     for (const role of roles) {
       const exceeds =
         role.code === ROLE_CODES.ADMIN ||
-        role.permissions.some(
-          ({ permission }) => !actor.permissions.has(permission.code as PermissionCode),
+        role.permissions.some(({ permission }) =>
+          exceedsActor(actor, permission.code as PermissionCode),
         );
       if (exceeds) {
         throw new ForbiddenException(`You cannot assign the ${role.code} role`);
@@ -316,7 +322,7 @@ export class UsersService {
     if (!target) throw new NotFoundException('User not found');
     const exceeds =
       target.roles.includes(ROLE_CODES.ADMIN) ||
-      [...target.permissions].some((p) => !actor.permissions.has(p));
+      [...target.permissions].some((p) => exceedsActor(actor, p));
     if (exceeds) {
       throw new ForbiddenException('You cannot manage a user with more access than you');
     }

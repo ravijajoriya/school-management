@@ -33,6 +33,14 @@ export const PERMISSIONS = {
   STUDENTS_READ: 'students.read',
   STUDENTS_MANAGE: 'students.manage',
   STUDENTS_LIFECYCLE: 'students.lifecycle',
+
+  // Phase 4 — attendance & leave
+  ATTENDANCE_MARK: 'attendance.mark_assigned',
+  ATTENDANCE_READ: 'attendance.read',
+  ATTENDANCE_MANAGE: 'attendance.manage',
+  LEAVE_APPLY: 'leave.apply',
+  LEAVE_READ: 'leave.read',
+  LEAVE_APPROVE: 'leave.approve',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -107,4 +115,51 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     name: 'Promote, retain, transfer & withdraw students',
     module: 'students',
   },
+  {
+    code: PERMISSIONS.ATTENDANCE_MARK,
+    name: 'Mark attendance for own class (class teacher, same day)',
+    module: 'attendance',
+  },
+  {
+    code: PERMISSIONS.ATTENDANCE_READ,
+    name: 'View attendance of all classes and attendance reports',
+    module: 'attendance',
+  },
+  {
+    code: PERMISSIONS.ATTENDANCE_MANAGE,
+    name: 'Mark any class and correct past attendance (with a reason)',
+    module: 'attendance',
+  },
+  { code: PERMISSIONS.LEAVE_APPLY, name: 'Apply for own leave', module: 'leave' },
+  { code: PERMISSIONS.LEAVE_READ, name: 'View staff leave requests', module: 'leave' },
+  {
+    code: PERMISSIONS.LEAVE_APPROVE,
+    name: 'Approve or reject staff leave requests',
+    module: 'leave',
+  },
 ];
+
+/**
+ * Permissions a role receives by default. Granted by the seed only when the permission is first
+ * created, so later changes made under Roles & Permissions are never overwritten.
+ */
+export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<string, readonly PermissionCode[]>> = {
+  TEACHER: [PERMISSIONS.ATTENDANCE_MARK, PERMISSIONS.LEAVE_APPLY],
+};
+
+/**
+ * Self-service permissions used inside the Teacher Portal. Holding only these does not open the
+ * Admin Portal.
+ */
+export const SELF_SERVICE_PERMISSIONS: ReadonlySet<PermissionCode> = new Set([
+  PERMISSIONS.ATTENDANCE_MARK,
+  PERMISSIONS.LEAVE_APPLY,
+]);
+
+/** True when the user belongs in the Admin Portal (ADMIN role or any administrative permission). */
+export function hasAdminAccess(roles: readonly string[], permissions: readonly string[]): boolean {
+  return (
+    roles.includes('ADMIN') ||
+    permissions.some((p) => !SELF_SERVICE_PERMISSIONS.has(p as PermissionCode))
+  );
+}

@@ -1,4 +1,10 @@
-import type { AuthUser, ChangePasswordInput, LoginInput, PermissionCode } from '@school/shared';
+import {
+  hasAdminAccess,
+  type AuthUser,
+  type ChangePasswordInput,
+  type LoginInput,
+  type PermissionCode,
+} from '@school/shared';
 import { createContext, useContext } from 'react';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
@@ -21,7 +27,10 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-/** Where a user lands after signing in: admin-capable users → /admin, everyone else → /teacher. */
+/**
+ * Where a user lands after signing in: ADMIN or any administrative permission → /admin; teachers
+ * (no permissions, or only self-service ones such as marking their own class) → /teacher.
+ */
 export function homePathFor(user: AuthUser): string {
-  return user.roles.includes('ADMIN') || user.permissions.length > 0 ? '/admin' : '/teacher';
+  return hasAdminAccess(user.roles, user.permissions) ? '/admin' : '/teacher';
 }

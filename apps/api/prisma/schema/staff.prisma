@@ -25,6 +25,7 @@ model Employee {
   documents      EmployeeDocument[]
   classTeacherOf Section[]           @relation("SectionClassTeacher")
   assignments    TeacherAssignment[]
+  leaveRequests  LeaveRequest[]
 
   @@index([status])
   @@map("employees")

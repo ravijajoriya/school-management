@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ROLE_PERMISSIONS,
   PAGE_CONTENT_SCHEMAS,
   PAGE_KEYS,
   PERMISSION_DEFINITIONS,
@@ -46,6 +47,8 @@ const SYSTEM_ROLES = [
  * Idempotent reference-data seed. Safe to run on every deployment:
  *  - upserts every permission defined in @school/shared
  *  - upserts the system roles and keeps ADMIN holding every permission
+ *  - grants DEFAULT_ROLE_PERMISSIONS (e.g. TEACHER → attendance.mark_assigned) only when a
+ *    permission is created for the first time, so later edits under Roles are never undone
  *  - creates the first admin (and optional teacher) account if missing
  *  - creates the class catalogue and starter website pages if missing (never overwrites edits)
  */
@@ -57,6 +60,9 @@ export async function seedDatabase(
   const passwords = new PasswordService();
   const result: SeedResult = { permissions: 0, createdAccounts: [] };
 
+  const existingCodes = new Set(
+    (await prisma.permission.findMany({ select: { code: true } })).map((p) => p.code),
+  );
   for (const def of PERMISSION_DEFINITIONS) {
     await prisma.permission.upsert({
       where: { code: def.code },
@@ -89,6 +95,20 @@ export async function seedDatabase(
     skipDuplicates: true,
   });
   log('System roles synced (ADMIN holds every permission)');
+
+  for (const [roleCode, codes] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+    const fresh = codes.filter((c) => !existingCodes.has(c));
+    if (!fresh.length || !roleIds[roleCode]) continue;
+    const perms = await prisma.permission.findMany({
+      where: { code: { in: [...fresh] } },
+      select: { id: true },
+    });
+    await prisma.rolePermission.createMany({
+      data: perms.map((p) => ({ roleId: roleIds[roleCode], permissionId: p.id })),
+      skipDuplicates: true,
+    });
+    log(`Default permissions granted to ${roleCode}: ${fresh.join(', ')}`);
+  }
 
   const adminExists = await prisma.user.count({
     where: { roles: { some: { role: { code: ROLE_CODES.ADMIN } } } },

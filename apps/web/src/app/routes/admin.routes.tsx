@@ -24,6 +24,37 @@ const ADMIN_NAV: PortalNavItem[] = [
     section: 'People',
   },
   {
+    to: '/admin/leave',
+    label: 'Staff Leave',
+    permissions: [PERMISSIONS.LEAVE_READ],
+    section: 'People',
+  },
+  {
+    to: '/admin/attendance',
+    label: 'Mark & Correct',
+    end: true,
+    permissions: [PERMISSIONS.ATTENDANCE_READ],
+    section: 'Attendance',
+  },
+  {
+    to: '/admin/attendance/daily',
+    label: 'Daily Report',
+    permissions: [PERMISSIONS.ATTENDANCE_READ],
+    section: 'Attendance',
+  },
+  {
+    to: '/admin/attendance/monthly',
+    label: 'Monthly Report',
+    permissions: [PERMISSIONS.ATTENDANCE_READ],
+    section: 'Attendance',
+  },
+  {
+    to: '/admin/attendance/register',
+    label: 'Class Register',
+    permissions: [PERMISSIONS.ATTENDANCE_READ],
+    section: 'Attendance',
+  },
+  {
     to: '/admin/academic-years',
     label: 'Academic Years',
     permissions: [PERMISSIONS.ACADEMICS_READ],
@@ -115,6 +146,7 @@ const enquiries = () => import('@/features/admin/enquiries/EnquiryPages');
 const academics = () => import('@/features/admin/academics/AcademicsPages');
 const staff = () => import('@/features/admin/staff/StaffPages');
 const students = () => import('@/features/admin/students/StudentPages');
+const attendance = () => import('@/features/attendance/pages/AdminAttendancePages');
 
 /** A permission-guarded, lazy-loaded admin page. */
 function guarded(
@@ -164,6 +196,21 @@ export const adminRoutes: RouteObject = {
         })),
         guarded('staff/:id', PERMISSIONS.EMPLOYEES_READ, async () => ({
           Component: (await staff()).EmployeeDetailPage,
+        })),
+        guarded('leave', PERMISSIONS.LEAVE_READ, async () => ({
+          Component: (await import('@/features/leave/LeavePages')).LeaveRequestsPage,
+        })),
+        guarded('attendance', PERMISSIONS.ATTENDANCE_READ, async () => ({
+          Component: (await attendance()).MarkAttendancePage,
+        })),
+        guarded('attendance/daily', PERMISSIONS.ATTENDANCE_READ, async () => ({
+          Component: (await attendance()).DailyAttendancePage,
+        })),
+        guarded('attendance/monthly', PERMISSIONS.ATTENDANCE_READ, async () => ({
+          Component: (await attendance()).MonthlyAttendancePage,
+        })),
+        guarded('attendance/register', PERMISSIONS.ATTENDANCE_READ, async () => ({
+          Component: (await attendance()).AttendanceRegisterPage,
         })),
         guarded('academic-years', PERMISSIONS.ACADEMICS_READ, async () => ({
           Component: (await academics()).AcademicYearsPage,
