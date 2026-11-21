@@ -1,0 +1,9 @@
+# React (Vite) web app — app-specific rules (root .gitignore covers env, dist, node_modules, logs)
+
+# Vite
+dist-ssr/
+*.local
+.vite/
+
+# Bundle analysis reports
+stats.html

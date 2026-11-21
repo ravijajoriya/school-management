@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens taken from the approved desktop design (docs/design/public-website-desktop.png).
+ * Navy = primary brand colour (top bar, headers, stats band); Gold = accent (CTAs, highlights).
+ * Use as Tailwind utilities: bg-brand-navy, text-brand-gold, border-brand-gold-light, etc.
+ */
+@theme {
+  --color-brand-navy: #13294b;
+  --color-brand-navy-dark: #0c1d38;
+  --color-brand-navy-light: #1f3c6b;
+  --color-brand-gold: #f0a500;
+  --color-brand-gold-dark: #c98a00;
+  --color-brand-gold-light: #fdf3dc;
+  --color-surface: #f5f7fb;
+  --color-ink: #1f2937;
+  --color-ink-muted: #4b5563;
+
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html {
+  color: var(--color-ink);
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,63 @@
+# =============================================================================
+# Root .gitignore — rules shared by every package in the monorepo.
+# App-specific rules live in apps/api/.gitignore and apps/web/.gitignore.
+# =============================================================================
+
+# --- Dependencies -------------------------------------------------------------
+node_modules/
+.pnpm-store/
+
+# --- Build output & caches ----------------------------------------------------
+dist/
+build/
+out/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# --- Tests & coverage ---------------------------------------------------------
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+
+# --- Environment & secrets (never commit) -------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+secrets/
+
+# --- Logs ---------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Database dumps / local data ----------------------------------------------
+*.sql.gz
+*.dump
+*.backup
+
+# --- OS files -----------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editors & tools ----------------------------------------------------------
+.idea/
+*.swp
+*.swo
+*.sw?
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+# Claude Code: personal/local settings only (shared settings may be committed)
+.claude/settings.local.json

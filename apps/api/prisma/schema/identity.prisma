@@ -1,0 +1,108 @@
+// Phase 1 — migration 001_identity_access
+
+/// Named access roles, e.g. ADMIN, TEACHER. Admin sub-roles are permission-driven.
+model Role {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+/// Atomic permission keys enforced by API guards (codes defined in @school/shared).
+model Permission {
+  id          String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code        String  @unique @db.VarChar(120)
+  name        String  @db.VarChar(120)
+  module      String  @db.VarChar(80)
+  description String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+/// Login identities for Admin and Teacher users.
+model User {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Stored lower-cased. SQL: CHECK (email IS NOT NULL OR phone IS NOT NULL)
+  email              String?   @unique @db.VarChar(255)
+  phone              String?   @unique @db.VarChar(20)
+  passwordHash       String    @map("password_hash") @db.VarChar(255)
+  fullName           String    @map("full_name") @db.VarChar(160)
+  /// SQL: CHECK (status IN ('ACTIVE','INACTIVE','LOCKED'))
+  status             String    @default("ACTIVE") @db.VarChar(20)
+  /// Added: forces a password change on next login (first login, admin reset). No email reset in scope.
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  /// Added: tokens issued before this moment are rejected.
+  passwordChangedAt  DateTime? @map("password_changed_at") @db.Timestamptz(6)
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  roles         UserRole[] @relation("UserRoles")
+  rolesAssigned UserRole[] @relation("UserRolesAssignedBy")
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+/// Role assignments to users. Composite PK (user_id, role_id).
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  assignedBy String?  @map("assigned_by") @db.Uuid
+
+  user           User  @relation("UserRoles", fields: [userId], references: [id], onDelete: Restrict)
+  role           Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assignedByUser User? @relation("UserRolesAssignedBy", fields: [assignedBy], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+/// Permission assignments to roles. Composite PK (role_id, permission_id).
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+/// Refresh-token records. Only a hash of the token is stored, never the raw token.
+model RefreshToken {
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(255)
+  /// Added: all tokens descending from one login share a family; reuse of a rotated token revokes the family.
+  familyId   String    @map("family_id") @db.Uuid
+  /// Added: set when this token is rotated; points at its successor.
+  replacedById String? @unique @map("replaced_by_id") @db.Uuid
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent")
+  ipAddress  String?   @map("ip_address") @db.Inet
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("TokenRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   RefreshToken? @relation("TokenRotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
