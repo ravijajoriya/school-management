@@ -38,6 +38,7 @@ import {
   useCreateComplaint,
   useUpdateComplaint,
 } from '../operations-api';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 const STATUS_TONE: Record<ComplaintStatus, 'amber' | 'navy' | 'green' | 'gray'> = {
   OPEN: 'amber',
@@ -67,7 +68,12 @@ export function ComplaintsPage() {
       <PageHeader
         title="Complaints"
         description="Complaints and grievances from parents, students or staff, with who is handling them and how they were resolved."
-        actions={manage && <Button onClick={() => setCreating(true)}>Log complaint</Button>}
+        actions={
+          <>
+            <ExportButtons report="complaints" params={{ status: status || undefined }} />
+            {manage && <Button onClick={() => setCreating(true)}>Log complaint</Button>}
+          </>
+        }
       />
       {summary.data && (
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

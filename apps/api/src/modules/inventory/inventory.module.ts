@@ -400,5 +400,6 @@ export class InventoryController {
 @Module({
   controllers: [InventoryController],
   providers: [InventoryService],
+  exports: [InventoryService],
 })
 export class InventoryModule {}

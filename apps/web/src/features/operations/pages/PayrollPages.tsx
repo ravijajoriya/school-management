@@ -41,6 +41,7 @@ import {
   useSalaryComponents,
   useSaveSalaryComponent,
 } from '../operations-api';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 const STATUS_TONE: Record<PayrollStatus, 'amber' | 'navy' | 'green'> = {
   DRAFT: 'amber',
@@ -181,6 +182,7 @@ export function PayrollRunPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Payroll
         </Link>
         <div className="flex flex-wrap gap-2">
+          <ExportButtons report="payroll-register" params={{ runId: r.id }} />
           <Button variant="secondary" onClick={() => window.print()}>
             <Printer className="h-4 w-4" aria-hidden="true" /> Print register
           </Button>

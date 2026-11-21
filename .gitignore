@@ -46,6 +46,7 @@ yarn-error.log*
 *.sql.gz
 *.dump
 *.backup
+backups/
 
 # --- OS files -----------------------------------------------------------------
 .DS_Store

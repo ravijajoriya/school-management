@@ -28,6 +28,8 @@ import { MeetingsModule } from './modules/meetings/meetings.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { PayrollModule } from './modules/payroll/payroll.module.js';
 import { CertificatesModule } from './modules/certificates/certificates.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
+import { ImportsModule } from './modules/imports/imports.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -100,6 +102,8 @@ import { UsersModule } from './modules/users/users.module.js';
     InventoryModule,
     PayrollModule,
     CertificatesModule,
+    ReportsModule,
+    ImportsModule,
     HealthModule,
   ],
   providers: [

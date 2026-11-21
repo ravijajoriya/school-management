@@ -7,5 +7,8 @@
 /storage/
 /uploads/
 
+# Local backups (pnpm backup) — contain personal data, never commit
+/backups/
+
 # Local .env copies used for one-off testing
 /.env*.local

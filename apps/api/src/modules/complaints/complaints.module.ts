@@ -339,5 +339,6 @@ export class ComplaintsController {
 @Module({
   controllers: [ComplaintsController],
   providers: [ComplaintsService],
+  exports: [ComplaintsService],
 })
 export class ComplaintsModule {}

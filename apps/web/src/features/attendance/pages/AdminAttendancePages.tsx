@@ -18,6 +18,7 @@ import { todayIso } from '@/lib/format';
 import { useDailyReport, useMonthlyReport } from '../attendance-api';
 import { AttendanceSheetPanel } from '../components/AttendanceSheetPanel';
 import { PercentBadge, RegisterPanel } from '../components/AttendanceReports';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 /** Reads/writes query-string filters so report rows can link straight to a sheet or register. */
 function useParam(key: string, fallback = '') {
@@ -322,6 +323,11 @@ export function AttendanceRegisterPage() {
       <PageHeader
         title="Class attendance register"
         description="One class, one month: every student's day-by-day attendance."
+        actions={
+          sectionId ? (
+            <ExportButtons report="attendance-register" params={{ sectionId, month }} />
+          ) : undefined
+        }
       />
       <Card className="mb-6 flex flex-wrap items-end gap-4 p-4 print:hidden">
         <Field label="Academic year" htmlFor="reg-year">

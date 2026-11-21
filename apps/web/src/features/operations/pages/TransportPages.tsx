@@ -37,6 +37,7 @@ import {
   useTransportAssignments,
   useVehicles,
 } from '../operations-api';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 function TransportTabs() {
   const tab = (to: string, label: string) => (
@@ -444,7 +445,12 @@ export function TransportStudentsPage() {
       <PageHeader
         title="Transport"
         description="Students currently using school transport."
-        actions={manage && <Button onClick={() => setAssigning(true)}>Assign student</Button>}
+        actions={
+          <>
+            <ExportButtons report="transport-riders" params={{ routeId: routeId || undefined }} />
+            {manage && <Button onClick={() => setAssigning(true)}>Assign student</Button>}
+          </>
+        }
       />
       <TransportTabs />
       {error && (

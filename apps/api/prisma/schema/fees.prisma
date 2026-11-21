@@ -83,6 +83,7 @@ model StudentFeeDue {
   @@unique([studentEnrolmentId, feeStructureItemId])
   @@index([academicYearId, status])
   @@index([dueDate])
+  @@index([feeHeadId])
   @@map("student_fee_dues")
 }
 

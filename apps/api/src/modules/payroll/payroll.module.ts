@@ -760,5 +760,6 @@ export class PayrollController {
   imports: [AcademicsModule],
   controllers: [PayrollController],
   providers: [PayrollService],
+  exports: [PayrollService],
 })
 export class PayrollModule {}

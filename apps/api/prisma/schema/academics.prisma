@@ -70,6 +70,7 @@ model Section {
   @@unique([id, academicYearId])
   @@unique([id, academicYearId, classId])
   @@index([classId])
+  @@index([classTeacherId])
   @@map("sections")
 }
 
@@ -118,5 +119,6 @@ model TeacherAssignment {
   @@unique([employeeId, sectionId, classSubjectId])
   @@index([sectionId])
   @@index([academicYearId, employeeId])
+  @@index([classSubjectId])
   @@map("teacher_assignments")
 }

@@ -127,6 +127,9 @@ export const AUDIT_ACTIONS = {
   CERTIFICATE_ISSUED: 'certificate.issued',
   ID_CARD_TEMPLATE_SAVED: 'id_card_template.saved',
   ID_CARDS_GENERATED: 'id_cards.generated',
+  // Phase 8
+  REPORT_EXPORTED: 'report.exported',
+  DATA_IMPORT_COMMITTED: 'data_import.committed',
   // Development tooling: demo data seed / clear (pnpm demo:seed, pnpm demo:clear)
   DEMO_DATA_SEEDED: 'demo_data.seeded',
   DEMO_DATA_CLEARED: 'demo_data.cleared',

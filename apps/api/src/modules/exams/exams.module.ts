@@ -239,5 +239,6 @@ export class ExamsController {
   imports: [AcademicsModule],
   controllers: [ExamsController],
   providers: [ExamsService, GradingService, MarksService, ResultsService],
+  exports: [ResultsService],
 })
 export class ExamsModule {}

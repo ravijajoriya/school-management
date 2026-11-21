@@ -61,8 +61,11 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts, 0007 exams, results & timetable, 0008 school operations)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts, 0007 exams, results & timetable, 0008 school operations, 0009 reports & hardening)
 - `docs/erd/` — entity-relationship diagrams per phase
+- `docs/runbooks/` — backup & restore, data migration at go-live
+- `docs/security/` — security review
+- `docs/uat/` — user acceptance test script and sign-off sheet
 - `docs/design/` — approved UI designs
 
 ## Demo data (development only)
@@ -80,6 +83,18 @@ receipts `DEMO-RCT/…`, vehicles `DEMO …`, asset codes `DEMO-AST-…`, certif
 exactly that, plus anything you later attach to it (attendance, leave, fees, documents, students
 converted into demo classes). Demo logins you have signed in with are deactivated, not deleted,
 because the audit log can never be changed. Refuses to run with `NODE_ENV=production`.
+
+## Backups
+
+| Command                 | What it does                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `pnpm backup`           | Database dump + uploaded files + manifest (row counts, checksum) into `apps/api/backups/`              |
+| `pnpm backup:list`      | Lists backups, newest first                                                                            |
+| `pnpm backup:drill`     | Backs up, restores into a scratch database, compares every table and the files, then cleans up         |
+| `pnpm restore <folder>` | Restores a backup (`--target <url>`, `--with-files`, `--force`); see `docs/runbooks/backup-restore.md` |
+
+Needs the PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`, version ≥ the server); set `PG_BIN` if
+they are not on your PATH. Backups contain personal data and are git-ignored.
 
 ## Common commands
 

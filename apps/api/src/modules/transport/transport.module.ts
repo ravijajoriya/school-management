@@ -569,5 +569,6 @@ export class TransportController {
 @Module({
   controllers: [TransportController],
   providers: [TransportService],
+  exports: [TransportService],
 })
 export class TransportModule {}

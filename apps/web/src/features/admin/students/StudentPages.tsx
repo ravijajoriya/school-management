@@ -55,6 +55,7 @@ import {
   useYearSelection,
 } from '../people-api';
 import { AddressFields, EnrolmentFields, StudentFields } from './StudentFormParts';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', WITHDRAWN: 'red' } as const;
 const ENROLMENT_TONE = {
@@ -102,6 +103,16 @@ export function StudentsPage() {
         actions={
           <>
             <YearPicker yearId={yearId} onChange={reset(setYearId)} years={years.data} />
+            <ExportButtons
+              report="students"
+              params={{
+                academicYearId: yearId || undefined,
+                classId: classId || undefined,
+                sectionId: sectionId || undefined,
+                status: status || undefined,
+                search: search || undefined,
+              }}
+            />
             <PermissionGate permissions={[PERMISSIONS.STUDENTS_MANAGE]}>
               <Button onClick={() => navigate('/admin/students/new')}>Register student</Button>
             </PermissionGate>

@@ -20,3 +20,5 @@ export * from './schemas/timetable.js';
 export * from './schemas/operations.js';
 export * from './schemas/payroll.js';
 export * from './schemas/certificates.js';
+export * from './schemas/reports.js';
+export * from './schemas/imports.js';
