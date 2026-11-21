@@ -61,22 +61,22 @@ against PostgreSQL 18.
 
 ## Docs
 
-- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts, 0007 exams, results & timetable)
+- `docs/adr/` — design decisions (0001 baseline, 0002 authentication & authorization, 0003 website/CMS/admissions, 0004 academics/staff/students, 0005 attendance & leave, 0006 fees & receipts, 0007 exams, results & timetable, 0008 school operations)
 - `docs/erd/` — entity-relationship diagrams per phase
 - `docs/design/` — approved UI designs
 
 ## Demo data (development only)
 
-| Command            | What it does                                                                                                                  |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm demo:seed`   | Adds a demo school: 6 classes, 9 staff, 49 students, attendance, leave, fees & receipts, exams & marks, timetables, enquiries |
-| `pnpm demo:status` | Shows whether demo data is present                                                                                            |
-| `pnpm demo:clear`  | Removes the demo data again; your own data is kept                                                                            |
+| Command            | What it does                                                                                                                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm demo:seed`   | Adds a demo school: 6 classes, 9 staff, 49 students, attendance, leave, fees & receipts, exams & marks, timetables, enquiries, transport, complaints, parent meetings, inventory, a paid payroll month, a certificate and ID cards |
+| `pnpm demo:status` | Shows whether demo data is present                                                                                                                                                                                                 |
+| `pnpm demo:clear`  | Removes the demo data again; your own data is kept                                                                                                                                                                                 |
 
 Demo logins (password `Demo@1234`): `sunita@demo.local` and `anil@demo.local` (class teachers),
 `pooja@demo.local` (subject teacher only), `office@demo.local` (limited office role). Demo records
 are easy to spot: admission numbers `DEMO-0001…`, staff codes `DEMO-EMP-…`, enquiries `DEMO-ENQ-…`,
-receipts `DEMO-RCT/…`. The seed records what it created in the audit log, and `demo:clear` removes
+receipts `DEMO-RCT/…`, vehicles `DEMO …`, asset codes `DEMO-AST-…`, certificates `DEMO-…/…`. The seed records what it created in the audit log, and `demo:clear` removes
 exactly that, plus anything you later attach to it (attendance, leave, fees, documents, students
 converted into demo classes). Demo logins you have signed in with are deactivated, not deleted,
 because the audit log can never be changed. Refuses to run with `NODE_ENV=production`.
@@ -103,4 +103,5 @@ because the audit log can never be changed. Refuses to run with `NODE_ENV=produc
   `prisma/migrations/<timestamp>_<name>/migration.sql`, add the hand-written SQL, then `prisma:deploy`.
 - Uploaded student/staff documents and photos are private: stored under `private/` in `STORAGE_DIR`
   and served only through permission-checked API endpoints (never a public URL).
-- No cascade deletes on historical records (students, enrolments, attendance, marks, payments, receipts).
+- No cascade deletes on historical records (students, enrolments, attendance, marks, payments, receipts,
+  payroll, issued certificates). Approved/paid payroll and issued certificates are locked by triggers.

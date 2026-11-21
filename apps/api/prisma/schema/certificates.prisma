@@ -1,0 +1,76 @@
+// Phase 7 — certificates and ID cards (migration 023_certificates_idcards).
+
+/// Editable certificate wording (TC, Bonafide, Character…). Plain text with {{placeholders}}.
+model CertificateTemplate {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code         String   @unique @db.VarChar(50)
+  name         String   @db.VarChar(120)
+  templateHtml String   @map("template_html")
+  isActive     Boolean  @default(true) @map("is_active")
+  updatedBy    String   @map("updated_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  editor User               @relation("CertificateTemplateEditor", fields: [updatedBy], references: [id], onDelete: Restrict)
+  issues CertificateIssue[]
+
+  @@map("certificate_templates")
+}
+
+/// Issued certificate. The final text is frozen in `snapshot`; rows are immutable (trigger).
+model CertificateIssue {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. TC/2026/0001 — numbered per template code and calendar year
+  certificateNumber  String   @unique @map("certificate_number") @db.VarChar(40)
+  templateId         String   @map("template_id") @db.Uuid
+  studentId          String   @map("student_id") @db.Uuid
+  studentEnrolmentId String?  @map("student_enrolment_id") @db.Uuid
+  issuedOn           DateTime @map("issued_on") @db.Date
+  issuedBy           String   @map("issued_by") @db.Uuid
+  snapshot           Json
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  template  CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  student   Student             @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  enrolment StudentEnrolment?   @relation(fields: [studentEnrolmentId], references: [id], onDelete: Restrict)
+  issuer    User                @relation("CertificateIssuer", fields: [issuedBy], references: [id], onDelete: Restrict)
+
+  @@index([studentId])
+  @@index([templateId])
+  @@map("certificate_issues")
+}
+
+/// ID card design for students or staff.
+model IdCardTemplate {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name      String   @db.VarChar(100)
+  /// SQL: CHECK (audience IN ('STUDENT','STAFF'))
+  audience  String   @db.VarChar(20)
+  layout    Json
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  batches IdCardBatch[]
+
+  @@map("id_card_templates")
+}
+
+/// A printed batch of ID cards (who and which sections). Cards render from current records.
+model IdCardBatch {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  templateId     String   @map("template_id") @db.Uuid
+  academicYearId String?  @map("academic_year_id") @db.Uuid
+  /// { sectionIds: [...] } for students; {} for all active staff
+  filters        Json
+  /// SQL: CHECK (card_count >= 0)
+  cardCount      Int      @map("card_count")
+  createdBy      String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  template     IdCardTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear?  @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  creator      User           @relation("IdCardBatchCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@map("id_card_batches")
+}

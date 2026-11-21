@@ -104,6 +104,48 @@ const ADMIN_NAV: PortalNavItem[] = [
     section: 'Attendance',
   },
   {
+    to: '/admin/transport',
+    label: 'Transport',
+    permissions: [PERMISSIONS.TRANSPORT_READ],
+    section: 'Operations',
+  },
+  {
+    to: '/admin/complaints',
+    label: 'Complaints',
+    permissions: [PERMISSIONS.COMPLAINTS_READ],
+    section: 'Operations',
+  },
+  {
+    to: '/admin/meetings',
+    label: 'Parent Meetings',
+    permissions: [PERMISSIONS.MEETINGS_READ],
+    section: 'Operations',
+  },
+  {
+    to: '/admin/inventory',
+    label: 'Inventory',
+    permissions: [PERMISSIONS.INVENTORY_READ],
+    section: 'Operations',
+  },
+  {
+    to: '/admin/payroll',
+    label: 'Payroll',
+    permissions: [PERMISSIONS.PAYROLL_READ],
+    section: 'Operations',
+  },
+  {
+    to: '/admin/certificates',
+    label: 'Certificates',
+    permissions: [PERMISSIONS.CERTIFICATES_ISSUE],
+    section: 'Operations',
+  },
+  {
+    to: '/admin/id-cards',
+    label: 'ID Cards',
+    permissions: [PERMISSIONS.ID_CARDS_GENERATE],
+    section: 'Operations',
+  },
+  {
     to: '/admin/academic-years',
     label: 'Academic Years',
     permissions: [PERMISSIONS.ACADEMICS_READ],
@@ -202,6 +244,12 @@ const results = () => import('@/features/exams/pages/ResultsPages');
 const timetables = () => import('@/features/timetable/pages/TimetablePages');
 const feeLedger = () => import('@/features/fees/pages/FeeLedgerPages');
 const feeReports = () => import('@/features/fees/pages/FeeReportPages');
+const transport = () => import('@/features/operations/pages/TransportPages');
+const complaints = () => import('@/features/operations/pages/ComplaintPages');
+const meetings = () => import('@/features/operations/pages/MeetingPages');
+const inventory = () => import('@/features/operations/pages/InventoryPages');
+const payroll = () => import('@/features/operations/pages/PayrollPages');
+const certificates = () => import('@/features/operations/pages/CertificatePages');
 
 /** A permission-guarded, lazy-loaded admin page. */
 function guarded(
@@ -302,6 +350,57 @@ export const adminRoutes: RouteObject = {
         })),
         guarded('fees/heads', PERMISSIONS.FEES_READ, async () => ({
           Component: (await feeSetup()).FeeHeadsPage,
+        })),
+        guarded('transport', PERMISSIONS.TRANSPORT_READ, async () => ({
+          Component: (await transport()).RoutesPage,
+        })),
+        guarded('transport/students', PERMISSIONS.TRANSPORT_READ, async () => ({
+          Component: (await transport()).TransportStudentsPage,
+        })),
+        guarded('transport/vehicles', PERMISSIONS.TRANSPORT_READ, async () => ({
+          Component: (await transport()).VehiclesPage,
+        })),
+        guarded('transport/routes/:id', PERMISSIONS.TRANSPORT_READ, async () => ({
+          Component: (await transport()).RouteSheetPage,
+        })),
+        guarded('complaints', PERMISSIONS.COMPLAINTS_READ, async () => ({
+          Component: (await complaints()).ComplaintsPage,
+        })),
+        guarded('complaints/:id', PERMISSIONS.COMPLAINTS_READ, async () => ({
+          Component: (await complaints()).ComplaintDetailPage,
+        })),
+        guarded('meetings', PERMISSIONS.MEETINGS_READ, async () => ({
+          Component: (await meetings()).MeetingsPage,
+        })),
+        guarded('inventory', PERMISSIONS.INVENTORY_READ, async () => ({
+          Component: (await inventory()).InventoryPage,
+        })),
+        guarded('payroll', PERMISSIONS.PAYROLL_READ, async () => ({
+          Component: (await payroll()).PayrollRunsPage,
+        })),
+        guarded('payroll/components', PERMISSIONS.PAYROLL_READ, async () => ({
+          Component: (await payroll()).SalaryComponentsPage,
+        })),
+        guarded('payroll/payslips/:recordId', PERMISSIONS.PAYROLL_READ, async () => ({
+          Component: (await payroll()).PayslipPage,
+        })),
+        guarded('payroll/:id', PERMISSIONS.PAYROLL_READ, async () => ({
+          Component: (await payroll()).PayrollRunPage,
+        })),
+        guarded('certificates', PERMISSIONS.CERTIFICATES_ISSUE, async () => ({
+          Component: (await certificates()).CertificatesPage,
+        })),
+        guarded('certificates/templates', PERMISSIONS.CERTIFICATES_TEMPLATES, async () => ({
+          Component: (await certificates()).CertificateTemplatesPage,
+        })),
+        guarded('certificates/:id', PERMISSIONS.CERTIFICATES_ISSUE, async () => ({
+          Component: (await certificates()).CertificateViewPage,
+        })),
+        guarded('id-cards', PERMISSIONS.ID_CARDS_GENERATE, async () => ({
+          Component: (await certificates()).IdCardsPage,
+        })),
+        guarded('id-cards/:id', PERMISSIONS.ID_CARDS_GENERATE, async () => ({
+          Component: (await certificates()).IdCardBatchPage,
         })),
         guarded('attendance', PERMISSIONS.ATTENDANCE_READ, async () => ({
           Component: (await attendance()).MarkAttendancePage,

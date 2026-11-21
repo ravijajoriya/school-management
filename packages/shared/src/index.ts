@@ -17,3 +17,6 @@ export * from './schemas/leave.js';
 export * from './schemas/fees.js';
 export * from './schemas/exams.js';
 export * from './schemas/timetable.js';
+export * from './schemas/operations.js';
+export * from './schemas/payroll.js';
+export * from './schemas/certificates.js';

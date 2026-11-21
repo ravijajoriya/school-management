@@ -1,0 +1,181 @@
+// Phase 7 — school operations
+// (migrations 019_transport, 020_complaints_meetings, 021_inventory).
+
+/// School bus / van. Registration number is unique (stored upper-case).
+model Vehicle {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  registrationNumber String    @unique @map("registration_number") @db.VarChar(30)
+  vehicleType        String?   @map("vehicle_type") @db.VarChar(50)
+  /// SQL: CHECK (capacity IS NULL OR capacity > 0)
+  capacity           Int?      @db.SmallInt
+  insuranceExpiry    DateTime? @map("insurance_expiry") @db.Date
+  permitExpiry       DateTime? @map("permit_expiry") @db.Date
+  /// SQL: CHECK (status IN ('ACTIVE','INACTIVE'))
+  status             String    @default("ACTIVE") @db.VarChar(20)
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  routes TransportRoute[]
+
+  @@map("vehicles")
+}
+
+/// Bus route with an optional vehicle, driver and attendant (staff records).
+model TransportRoute {
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// SQL: UNIQUE (lower(name))
+  name                String   @db.VarChar(100)
+  description         String?
+  vehicleId           String?  @map("vehicle_id") @db.Uuid
+  driverEmployeeId    String?  @map("driver_employee_id") @db.Uuid
+  attendantEmployeeId String?  @map("attendant_employee_id") @db.Uuid
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vehicle     Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  driver      Employee?          @relation("RouteDriver", fields: [driverEmployeeId], references: [id], onDelete: Restrict)
+  attendant   Employee?          @relation("RouteAttendant", fields: [attendantEmployeeId], references: [id], onDelete: Restrict)
+  stops       RouteStop[]
+  assignments StudentTransport[]
+
+  @@index([vehicleId])
+  @@map("transport_routes")
+}
+
+/// Ordered pickup/drop point on a route.
+model RouteStop {
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  routeId    String    @map("route_id") @db.Uuid
+  /// SQL: UNIQUE (route_id, lower(name))
+  name       String    @db.VarChar(120)
+  pickupTime DateTime? @map("pickup_time") @db.Time(0)
+  dropTime   DateTime? @map("drop_time") @db.Time(0)
+  /// SQL: CHECK (sequence_no > 0)
+  sequenceNo Int       @map("sequence_no") @db.SmallInt
+
+  route       TransportRoute     @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  assignments StudentTransport[]
+
+  /// Target for the composite FK that keeps an assignment's stop on its route.
+  @@unique([id, routeId])
+  @@index([routeId])
+  @@map("route_stops")
+}
+
+/// A student's route/stop for a date range (per enrolment). No fee billing here: transport is
+/// billed through a fee plan or a one-off charge in Fees.
+model StudentTransport {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentEnrolmentId String    @map("student_enrolment_id") @db.Uuid
+  routeId            String    @map("route_id") @db.Uuid
+  routeStopId        String?   @map("route_stop_id") @db.Uuid
+  startDate          DateTime  @map("start_date") @db.Date
+  /// SQL: CHECK (end_date IS NULL OR end_date >= start_date); no overlapping periods per enrolment (exclusion)
+  endDate            DateTime? @map("end_date") @db.Date
+  createdBy          String    @map("created_by") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  enrolment StudentEnrolment @relation(fields: [studentEnrolmentId], references: [id], onDelete: Restrict)
+  route     TransportRoute   @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  /// Composite FK: the stop must belong to the same route.
+  stop      RouteStop?       @relation(fields: [routeStopId, routeId], references: [id, routeId], onDelete: Restrict)
+  creator   User             @relation("StudentTransportCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([studentEnrolmentId])
+  @@index([routeId, endDate])
+  @@map("student_transport")
+}
+
+/// Complaint / grievance register with a readable reference number.
+model Complaint {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. CMP-2026-00001 (from complaint_reference_seq)
+  referenceNumber String    @unique @map("reference_number") @db.VarChar(30)
+  /// SQL: CHECK (category IN (...))
+  category        String    @db.VarChar(30)
+  subject         String    @db.VarChar(180)
+  description     String
+  submittedByName String?   @map("submitted_by_name") @db.VarChar(160)
+  contactPhone    String?   @map("contact_phone") @db.VarChar(20)
+  /// SQL: CHECK (status IN ('OPEN','IN_PROGRESS','RESOLVED','CLOSED')); RESOLVED/CLOSED need resolution notes
+  status          String    @default("OPEN") @db.VarChar(20)
+  assignedTo      String?   @map("assigned_to") @db.Uuid
+  resolutionNotes String?   @map("resolution_notes")
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdBy       String    @map("created_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assignee User? @relation("ComplaintAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
+  creator  User  @relation("ComplaintCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([assignedTo])
+  @@map("complaints")
+}
+
+/// Parent–teacher meeting for a student (enrolment) with a teacher (staff record).
+model ParentTeacherMeeting {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentEnrolmentId String   @map("student_enrolment_id") @db.Uuid
+  teacherEmployeeId  String   @map("teacher_employee_id") @db.Uuid
+  /// SQL: UNIQUE (teacher_employee_id, meeting_at) WHERE status = 'SCHEDULED'
+  meetingAt          DateTime @map("meeting_at") @db.Timestamptz(6)
+  venue              String?  @db.VarChar(160)
+  purpose            String?
+  /// SQL: CHECK (status IN ('SCHEDULED','COMPLETED','CANCELLED'))
+  status             String   @default("SCHEDULED") @db.VarChar(20)
+  notes              String?
+  createdBy          String   @map("created_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enrolment StudentEnrolment @relation(fields: [studentEnrolmentId], references: [id], onDelete: Restrict)
+  teacher   Employee         @relation(fields: [teacherEmployeeId], references: [id], onDelete: Restrict)
+  creator   User             @relation("MeetingCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([teacherEmployeeId, meetingAt])
+  @@index([studentEnrolmentId])
+  @@map("parent_teacher_meetings")
+}
+
+/// Asset category (Furniture, IT equipment, Lab, Sports…).
+model InventoryCategory {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// SQL: UNIQUE (lower(name))
+  name        String   @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  items InventoryItem[]
+
+  @@map("inventory_categories")
+}
+
+/// Asset register entry. Quantity is edited directly (no stock movements in this phase).
+model InventoryItem {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  categoryId      String    @map("category_id") @db.Uuid
+  /// e.g. AST-00001 (from inventory_asset_code_seq when not entered). SQL: unique, upper-case
+  assetCode       String    @unique @map("asset_code") @db.VarChar(50)
+  name            String    @db.VarChar(160)
+  /// SQL: CHECK (quantity >= 0)
+  quantity        Decimal   @default(1) @db.Decimal(12, 2)
+  unit            String?   @db.VarChar(30)
+  location        String?   @db.VarChar(120)
+  /// SQL: CHECK (condition_status IN ('GOOD','NEEDS_REPAIR','DAMAGED','DISPOSED'))
+  conditionStatus String    @default("GOOD") @map("condition_status") @db.VarChar(20)
+  purchaseDate    DateTime? @map("purchase_date") @db.Date
+  /// SQL: CHECK (purchase_cost IS NULL OR purchase_cost >= 0)
+  purchaseCost    Decimal?  @map("purchase_cost") @db.Decimal(12, 2)
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  category InventoryCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId])
+  @@index([conditionStatus])
+  @@map("inventory_items")
+}

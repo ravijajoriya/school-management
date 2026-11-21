@@ -135,6 +135,7 @@ describe('Attendance & leave (e2e)', () => {
       'attendance.mark_assigned',
       'leave.apply',
       'marks.enter_assigned',
+      'meetings.schedule_own',
     ]);
   });
 

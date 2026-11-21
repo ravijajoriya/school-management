@@ -1,0 +1,80 @@
+// Phase 7 — simple monthly payroll (migration 022_payroll).
+// Amounts are entered per employee (no statutory calculation). DRAFT → APPROVED → PAID.
+
+/// Earning or deduction head (Basic, DA, HRA, PF, TDS…).
+model SalaryComponent {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// SQL: UNIQUE (lower(name))
+  name          String   @db.VarChar(100)
+  /// SQL: CHECK (component_type IN ('EARNING','DEDUCTION'))
+  componentType String   @map("component_type") @db.VarChar(20)
+  isActive      Boolean  @default(true) @map("is_active")
+  sortOrder     Int      @default(0) @map("sort_order") @db.SmallInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  items PayrollItem[]
+
+  @@map("salary_components")
+}
+
+/// One payroll per calendar month.
+model PayrollRun {
+  id          String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// SQL: first day of the month; UNIQUE
+  periodStart DateTime  @unique @map("period_start") @db.Date
+  /// SQL: last day of the same month
+  periodEnd   DateTime  @map("period_end") @db.Date
+  /// SQL: CHECK (status IN ('DRAFT','APPROVED','PAID')); PAID is final (trigger)
+  status      String    @default("DRAFT") @db.VarChar(20)
+  createdBy   String    @map("created_by") @db.Uuid
+  approvedBy  String?   @map("approved_by") @db.Uuid
+  approvedAt  DateTime? @map("approved_at") @db.Timestamptz(6)
+  paidAt      DateTime? @map("paid_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  creator  User            @relation("PayrollRunCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approver User?           @relation("PayrollRunApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  records  PayrollRecord[]
+
+  @@map("payroll_runs")
+}
+
+/// One employee's pay for a run. Totals are kept in step with the items by the API.
+model PayrollRecord {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  payrollRunId    String   @map("payroll_run_id") @db.Uuid
+  employeeId      String   @map("employee_id") @db.Uuid
+  /// SQL: CHECK (gross_amount >= 0 AND deduction_amount >= 0 AND net_amount = gross_amount - deduction_amount AND net_amount >= 0)
+  grossAmount     Decimal  @default(0) @map("gross_amount") @db.Decimal(12, 2)
+  deductionAmount Decimal  @default(0) @map("deduction_amount") @db.Decimal(12, 2)
+  netAmount       Decimal  @default(0) @map("net_amount") @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  run      PayrollRun    @relation(fields: [payrollRunId], references: [id], onDelete: Restrict)
+  employee Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  items    PayrollItem[]
+
+  @@unique([payrollRunId, employeeId])
+  @@index([employeeId])
+  @@map("payroll_records")
+}
+
+/// Line of a payroll record. Name and type are copied from the component so payslips never change.
+model PayrollItem {
+  id                String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  payrollRecordId   String  @map("payroll_record_id") @db.Uuid
+  salaryComponentId String  @map("salary_component_id") @db.Uuid
+  componentName     String  @map("component_name") @db.VarChar(100)
+  /// SQL: CHECK (component_type IN ('EARNING','DEDUCTION'))
+  componentType     String  @map("component_type") @db.VarChar(20)
+  /// SQL: CHECK (amount >= 0)
+  amount            Decimal @db.Decimal(12, 2)
+  notes             String? @db.VarChar(255)
+
+  record    PayrollRecord   @relation(fields: [payrollRecordId], references: [id], onDelete: Restrict)
+  component SalaryComponent @relation(fields: [salaryComponentId], references: [id], onDelete: Restrict)
+
+  @@unique([payrollRecordId, salaryComponentId])
+  @@map("payroll_items")
+}
