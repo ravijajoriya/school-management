@@ -145,6 +145,8 @@ export interface EnquiryHistoryItem {
 export interface EnquiryDetail extends EnquiryListItem {
   dateOfBirth: string | null;
   message: string | null;
+  /** Set once the enquiry has been converted into a student record. */
+  convertedStudent: { id: string; admissionNumber: string; fullName: string } | null;
   followUps: EnquiryFollowUpItem[];
   history: EnquiryHistoryItem[];
 }

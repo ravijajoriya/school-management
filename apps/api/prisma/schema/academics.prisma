@@ -1,0 +1,113 @@
+// Phase 3 — migrations 005_academic_years, 006_academic_structure, 008_teacher_assignments
+
+/// School academic years. Exactly one ACTIVE year (partial unique index on is_active).
+model AcademicYear {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. 2026-2027
+  name      String   @unique @db.VarChar(20)
+  startDate DateTime @map("start_date") @db.Date
+  /// SQL: CHECK (end_date > start_date)
+  endDate   DateTime @map("end_date") @db.Date
+  /// SQL: CHECK (status IN ('DRAFT','ACTIVE','CLOSED'))
+  status    String   @default("DRAFT") @db.VarChar(20)
+  /// SQL: CHECK (is_active = (status = 'ACTIVE')); UNIQUE (is_active) WHERE is_active
+  isActive  Boolean  @default(false) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sections           Section[]
+  classSubjects      ClassSubject[]
+  teacherAssignments TeacherAssignment[]
+  enrolments         StudentEnrolment[]
+
+  @@map("academic_years")
+}
+
+/// Subject master.
+model Subject {
+  id          String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code        String? @unique @db.VarChar(30)
+  /// SQL: UNIQUE INDEX subjects_name_key ON subjects (lower(name)) — migration 010
+  name        String  @db.VarChar(100)
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  classSubjects ClassSubject[]
+
+  @@map("subjects")
+}
+
+/// Sections within a class and academic year.
+model Section {
+  id             String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId String  @map("academic_year_id") @db.Uuid
+  classId        String  @map("class_id") @db.Uuid
+  /// e.g. A, B
+  name           String  @db.VarChar(20)
+  roomLabel      String? @map("room_label") @db.VarChar(50)
+  /// SQL: CHECK (capacity > 0)
+  capacity       Int?    @db.SmallInt
+  /// Single source of truth for the class teacher (FK added in migration 007).
+  classTeacherId String? @map("class_teacher_id") @db.Uuid
+  isActive       Boolean @default(true) @map("is_active")
+
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  classTeacher Employee?    @relation("SectionClassTeacher", fields: [classTeacherId], references: [id], onDelete: Restrict)
+
+  teacherAssignments TeacherAssignment[]
+  enrolments         StudentEnrolment[]
+
+  @@unique([academicYearId, classId, name])
+  /// Targets for composite foreign keys that keep year/class consistent in child tables.
+  @@unique([id, academicYearId])
+  @@unique([id, academicYearId, classId])
+  @@index([classId])
+  @@map("sections")
+}
+
+/// Subjects configured for a class in an academic year.
+model ClassSubject {
+  id             String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId String  @map("academic_year_id") @db.Uuid
+  classId        String  @map("class_id") @db.Uuid
+  subjectId      String  @map("subject_id") @db.Uuid
+  /// SQL: CHECK (subject_type IN ('CORE','OPTIONAL','PRACTICAL'))
+  subjectType    String  @default("CORE") @map("subject_type") @db.VarChar(20)
+  isActive       Boolean @default(true) @map("is_active")
+
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  teacherAssignments TeacherAssignment[]
+
+  @@unique([academicYearId, classId, subjectId])
+  @@unique([id, academicYearId])
+  @@index([subjectId])
+  @@map("class_subjects")
+}
+
+/// Teacher-to-section/subject assignment; teacher access scope derives from this table
+/// (plus sections.class_teacher_id). `is_class_teacher` from the PDF is intentionally omitted:
+/// sections.class_teacher_id is the single source of truth (ADR 0004).
+model TeacherAssignment {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  sectionId      String   @map("section_id") @db.Uuid
+  classSubjectId String   @map("class_subject_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  /// Composite FK: the section must belong to the same academic year.
+  section      Section      @relation(fields: [sectionId, academicYearId], references: [id, academicYearId], onDelete: Restrict)
+  /// Composite FK: the class subject must belong to the same academic year.
+  classSubject ClassSubject @relation(fields: [classSubjectId, academicYearId], references: [id, academicYearId], onDelete: Restrict)
+
+  @@unique([employeeId, sectionId, classSubjectId])
+  @@index([sectionId])
+  @@index([academicYearId, employeeId])
+  @@map("teacher_assignments")
+}

@@ -1,0 +1,112 @@
+// Phase 3 — migration 009_students_enrolments
+
+/// Persistent student identity. Class/section live on student_enrolments (one per academic year).
+model Student {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. ADM-2026-00001 (auto from student_admission_number_seq when not entered)
+  admissionNumber String   @unique @map("admission_number") @db.VarChar(40)
+  firstName       String   @map("first_name") @db.VarChar(80)
+  middleName      String?  @map("middle_name") @db.VarChar(80)
+  lastName        String?  @map("last_name") @db.VarChar(80)
+  dateOfBirth     DateTime @map("date_of_birth") @db.Date
+  /// SQL: CHECK (gender IN ('MALE','FEMALE','OTHER'))
+  gender          String?  @db.VarChar(20)
+  bloodGroup      String?  @map("blood_group") @db.VarChar(5)
+  /// Private object key (served only to signed-in staff).
+  photoStorageKey String?  @map("photo_storage_key")
+  addressLine1    String?  @map("address_line1") @db.VarChar(200)
+  addressLine2    String?  @map("address_line2") @db.VarChar(200)
+  city            String?  @db.VarChar(100)
+  state           String?  @db.VarChar(100)
+  postalCode      String?  @map("postal_code") @db.VarChar(12)
+  /// SQL: CHECK (status IN ('ACTIVE','INACTIVE','WITHDRAWN'))
+  status          String   @default("ACTIVE") @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  guardians  StudentGuardian[]
+  enrolments StudentEnrolment[]
+  documents  StudentDocument[]
+  enquiry    AdmissionEnquiry?
+
+  @@index([lastName, firstName])
+  @@map("students")
+}
+
+/// Parent/guardian contacts. No parent login in this project.
+model StudentGuardian {
+  id                   String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentId            String   @map("student_id") @db.Uuid
+  fullName             String   @map("full_name") @db.VarChar(160)
+  /// SQL: CHECK (relationship IN ('FATHER','MOTHER','GUARDIAN','OTHER'))
+  relationship         String   @db.VarChar(40)
+  phone                String   @db.VarChar(20)
+  email                String?  @db.VarChar(255)
+  occupation           String?  @db.VarChar(100)
+  /// SQL: UNIQUE (student_id) WHERE is_primary — one primary contact per student
+  isPrimary            Boolean  @default(false) @map("is_primary")
+  addressSameAsStudent Boolean  @default(true) @map("address_same_as_student")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@index([studentId])
+  @@index([phone])
+  @@map("student_guardians")
+}
+
+/// Academic-year-specific class/section placement. History is never deleted.
+model StudentEnrolment {
+  id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentId           String    @map("student_id") @db.Uuid
+  academicYearId      String    @map("academic_year_id") @db.Uuid
+  classId             String    @map("class_id") @db.Uuid
+  sectionId           String    @map("section_id") @db.Uuid
+  /// Unique within the section when present
+  rollNumber          String?   @map("roll_number") @db.VarChar(20)
+  enrolmentDate       DateTime  @map("enrolment_date") @db.Date
+  /// SQL: CHECK (status IN ('ACTIVE','PROMOTED','RETAINED','TRANSFERRED','WITHDRAWN','COMPLETED'))
+  status              String    @default("ACTIVE") @db.VarChar(20)
+  /// Self FK: the enrolment this one continues from (promotion/retention). One successor each.
+  previousEnrolmentId String?   @unique @map("previous_enrolment_id") @db.Uuid
+  /// Added: date the student left (transfer/withdrawal/completion).
+  exitDate            DateTime? @map("exit_date") @db.Date
+  /// Added: reason for leaving.
+  exitReason          String?   @map("exit_reason")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student           Student           @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  academicYear      AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class             Class             @relation(fields: [classId], references: [id], onDelete: Restrict)
+  /// Composite FK: section, year and class must agree (class_id can never contradict the section).
+  section           Section           @relation(fields: [sectionId, academicYearId, classId], references: [id, academicYearId, classId], onDelete: Restrict)
+  previousEnrolment StudentEnrolment? @relation("EnrolmentContinuation", fields: [previousEnrolmentId], references: [id], onDelete: Restrict)
+  nextEnrolment     StudentEnrolment? @relation("EnrolmentContinuation")
+
+  @@unique([studentId, academicYearId])
+  @@unique([sectionId, rollNumber])
+  @@index([academicYearId, classId])
+  @@index([sectionId, status])
+  @@map("student_enrolments")
+}
+
+/// Private student document metadata (files in private storage).
+model StudentDocument {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentId     String   @map("student_id") @db.Uuid
+  documentType  String   @map("document_type") @db.VarChar(60)
+  fileName      String   @map("file_name") @db.VarChar(255)
+  storageKey    String   @map("storage_key")
+  mimeType      String   @map("mime_type") @db.VarChar(120)
+  /// SQL: CHECK (file_size_bytes > 0)
+  fileSizeBytes BigInt   @map("file_size_bytes")
+  uploadedBy    String   @map("uploaded_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student  Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  uploader User    @relation("StudentDocumentUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([studentId])
+  @@map("student_documents")
+}

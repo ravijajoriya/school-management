@@ -61,6 +61,11 @@ model User {
   enquiriesAssigned      AdmissionEnquiry[] @relation("EnquiryAssignee")
   enquiryFollowUps       EnquiryFollowUp[]  @relation("EnquiryFollowUpAuthor")
 
+  // Phase 3
+  employee                  Employee?          @relation("EmployeeUser")
+  employeeDocumentsUploaded EmployeeDocument[] @relation("EmployeeDocumentUploader")
+  studentDocumentsUploaded  StudentDocument[]  @relation("StudentDocumentUploader")
+
   @@map("users")
 }
 

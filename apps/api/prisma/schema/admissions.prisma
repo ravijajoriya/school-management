@@ -11,7 +11,10 @@ model Class {
   isActive   Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  enquiries AdmissionEnquiry[]
+  enquiries     AdmissionEnquiry[]
+  sections      Section[]
+  classSubjects ClassSubject[]
+  enrolments    StudentEnrolment[]
 
   @@map("classes")
 }
@@ -34,15 +37,16 @@ model AdmissionEnquiry {
   status             String    @default("NEW") @db.VarChar(30)
   assignedTo         String?   @map("assigned_to") @db.Uuid
   submittedAt        DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(6)
-  /// FK to students.id is added in Phase 3 when the students table exists.
-  convertedStudentId String?   @map("converted_student_id") @db.Uuid
+  /// Set when the enquiry is converted to a student (migration 009 adds the FK).
+  convertedStudentId String?   @unique @map("converted_student_id") @db.Uuid
   createdIp          String?   @map("created_ip") @db.Inet
   /// Added: last change time.
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  classSought Class             @relation(fields: [classSoughtId], references: [id], onDelete: Restrict)
-  assignee    User?             @relation("EnquiryAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
-  followUps   EnquiryFollowUp[]
+  classSought      Class             @relation(fields: [classSoughtId], references: [id], onDelete: Restrict)
+  assignee         User?             @relation("EnquiryAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
+  convertedStudent Student?          @relation(fields: [convertedStudentId], references: [id], onDelete: Restrict)
+  followUps        EnquiryFollowUp[]
 
   @@index([status, submittedAt])
   @@index([assignedTo])
