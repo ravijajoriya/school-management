@@ -15,6 +15,7 @@ model Class {
   sections      Section[]
   classSubjects ClassSubject[]
   enrolments    StudentEnrolment[]
+  feeStructures FeeStructure[]
 
   @@map("classes")
 }

@@ -23,6 +23,9 @@
     "prisma:status": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx src/database/seed/run-seed.ts",
+    "demo:seed": "tsx src/database/demo/run-demo.ts seed",
+    "demo:clear": "tsx src/database/demo/run-demo.ts clear",
+    "demo:status": "tsx src/database/demo/run-demo.ts status",
     "db:seed:prod": "node dist/database/seed/run-seed.js"
   },
   "dependencies": {

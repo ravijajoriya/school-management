@@ -41,6 +41,7 @@ import { errorMessages, splitFieldErrors } from '@/lib/api-client';
 import { formatDate, todayIso } from '@/lib/format';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { StudentAttendanceCard } from '@/features/attendance/components/AttendanceReports';
+import { StudentFeeCard } from '@/features/fees/components/StudentFeeCard';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { YearPicker } from '../components/YearPicker';
 import {
@@ -707,6 +708,12 @@ function StudentDetailView({ student }: { student: StudentDetail }) {
             </table>
           )}
         </Card>
+
+        {can(PERMISSIONS.FEES_READ) && (
+          <div className="lg:col-span-2">
+            <StudentFeeCard studentId={student.id} />
+          </div>
+        )}
 
         {can(PERMISSIONS.ATTENDANCE_READ) && (
           <div className="lg:col-span-2">

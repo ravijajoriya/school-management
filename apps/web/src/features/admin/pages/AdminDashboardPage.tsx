@@ -3,7 +3,9 @@ import { Link } from 'react-router';
 import { Card, PageHeader } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { useDailyReport } from '@/features/attendance/attendance-api';
+import { useFeeSummary } from '@/features/fees/fees-api';
 import { useLeaveSummary } from '@/features/leave/leave-api';
+import { formatRupees } from '@school/shared';
 import { todayIso } from '@/lib/format';
 import { useEnquirySummary, useUnreadMessages } from '../cms-api';
 import { NoticeFeed } from '../components/NoticeFeed';
@@ -41,6 +43,7 @@ export function AdminDashboardPage() {
   const unread = useUnreadMessages(can(PERMISSIONS.CONTACT_MESSAGES_MANAGE));
   const attendance = useDailyReport(todayIso(), can(PERMISSIONS.ATTENDANCE_READ));
   const leave = useLeaveSummary(can(PERMISSIONS.LEAVE_READ));
+  const fees = useFeeSummary(can(PERMISSIONS.FEES_READ));
 
   return (
     <div>
@@ -48,6 +51,33 @@ export function AdminDashboardPage() {
         title={`Welcome, ${user?.fullName ?? ''}`}
         description="School administration overview."
       />
+
+      {fees.data && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            to="/admin/fees/payments"
+            label="Fees collected today"
+            value={formatRupees(fees.data.collectedToday)}
+          />
+          <StatCard
+            to="/admin/fees/payments"
+            label="Receipts today"
+            value={fees.data.receiptsToday}
+          />
+          <StatCard
+            to="/admin/fees/reports"
+            label="Overdue fees"
+            value={formatRupees(fees.data.overdueBalance)}
+            highlight={fees.data.overdueBalance > 0}
+          />
+          <StatCard
+            to="/admin/fees/payments"
+            label="Cheques awaiting clearance"
+            value={fees.data.chequesPending}
+            highlight={fees.data.chequesPending > 0}
+          />
+        </div>
+      )}
 
       {(attendance.data?.academicYear || leave.data) && (
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

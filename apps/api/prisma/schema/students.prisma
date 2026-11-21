@@ -84,9 +84,13 @@ model StudentEnrolment {
   previousEnrolment StudentEnrolment?  @relation("EnrolmentContinuation", fields: [previousEnrolmentId], references: [id], onDelete: Restrict)
   nextEnrolment     StudentEnrolment?  @relation("EnrolmentContinuation")
   attendance        AttendanceRecord[]
+  feeDues           StudentFeeDue[]
+  payments          Payment[]
 
   @@unique([studentId, academicYearId])
   @@unique([sectionId, rollNumber])
+  /// Target for composite FKs that keep a child's academic year equal to the enrolment's.
+  @@unique([id, academicYearId])
   @@index([academicYearId, classId])
   @@index([sectionId, status])
   @@map("student_enrolments")

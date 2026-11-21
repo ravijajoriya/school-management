@@ -1,0 +1,176 @@
+// Phase 5 — fees, manual payments & receipts
+// (migrations 013_fee_configuration, 014_student_fee_ledger, 015_payments_receipts).
+// Posted financial records are never deleted: payments, allocations, adjustments and receipts are
+// protected by database triggers; mistakes are corrected by voiding/reversing (ADR 0006).
+
+/// Fee categories such as tuition, admission, transport, exam.
+model FeeHead {
+  id          String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code        String  @unique @db.VarChar(40)
+  name        String  @db.VarChar(100)
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  items FeeStructureItem[]
+  dues  StudentFeeDue[]
+
+  @@map("fee_heads")
+}
+
+/// Fee plan for a class and academic year.
+model FeeStructure {
+  id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId   String   @map("academic_year_id") @db.Uuid
+  classId          String   @map("class_id") @db.Uuid
+  name             String   @db.VarChar(120)
+  /// SQL: CHECK (billing_frequency IN ('MONTHLY','QUARTERLY','ANNUAL','CUSTOM'))
+  billingFrequency String   @map("billing_frequency") @db.VarChar(20)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  academicYear AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class        Class              @relation(fields: [classId], references: [id], onDelete: Restrict)
+  items        FeeStructureItem[]
+
+  @@unique([academicYearId, classId, name])
+  @@map("fee_structures")
+}
+
+/// Fee head and amount within a fee plan.
+model FeeStructureItem {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  feeStructureId   String    @map("fee_structure_id") @db.Uuid
+  feeHeadId        String    @map("fee_head_id") @db.Uuid
+  /// SQL: CHECK (amount >= 0)
+  amount           Decimal   @db.Decimal(12, 2)
+  dueDate          DateTime? @map("due_date") @db.Date
+  installmentLabel String?   @map("installment_label") @db.VarChar(80)
+  sequenceNo       Int       @map("sequence_no") @db.SmallInt
+
+  feeStructure FeeStructure    @relation(fields: [feeStructureId], references: [id], onDelete: Restrict)
+  feeHead      FeeHead         @relation(fields: [feeHeadId], references: [id], onDelete: Restrict)
+  dues         StudentFeeDue[]
+
+  @@unique([feeStructureId, sequenceNo])
+  @@map("fee_structure_items")
+}
+
+/// Student-specific fee obligations; the ledger source for balances.
+model StudentFeeDue {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentEnrolmentId String    @map("student_enrolment_id") @db.Uuid
+  feeHeadId          String    @map("fee_head_id") @db.Uuid
+  description        String    @db.VarChar(160)
+  /// SQL: CHECK (amount_due >= 0)
+  amountDue          Decimal   @map("amount_due") @db.Decimal(12, 2)
+  dueDate            DateTime? @map("due_date") @db.Date
+  academicYearId     String    @map("academic_year_id") @db.Uuid
+  /// SQL: CHECK (status IN ('OPEN','PARTIAL','PAID','WAIVED')) — kept in sync by the API
+  status             String    @default("OPEN") @db.VarChar(20)
+  /// Added: the fee plan line this due was generated from (null = one-off charge). Unique per
+  /// enrolment, so generating dues twice never bills a student twice.
+  feeStructureItemId String?   @map("fee_structure_item_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  /// Composite FK: the due's academic year must be the enrolment's year.
+  enrolment        StudentEnrolment    @relation(fields: [studentEnrolmentId, academicYearId], references: [id, academicYearId], onDelete: Restrict)
+  feeHead          FeeHead             @relation(fields: [feeHeadId], references: [id], onDelete: Restrict)
+  academicYear     AcademicYear        @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  feeStructureItem FeeStructureItem?   @relation(fields: [feeStructureItemId], references: [id], onDelete: Restrict)
+  adjustments      FeeAdjustment[]
+  allocations      PaymentAllocation[]
+
+  @@unique([studentEnrolmentId, feeStructureItemId])
+  @@index([academicYearId, status])
+  @@index([dueDate])
+  @@map("student_fee_dues")
+}
+
+/// Concessions, discounts, fines and waivers applied to a due. Never updated or deleted (trigger).
+model FeeAdjustment {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studentFeeDueId String   @map("student_fee_due_id") @db.Uuid
+  /// SQL: CHECK (adjustment_type IN ('CONCESSION','DISCOUNT','FINE','WAIVER'))
+  adjustmentType  String   @map("adjustment_type") @db.VarChar(20)
+  /// SQL: CHECK (amount >= 0)
+  amount          Decimal  @db.Decimal(12, 2)
+  reason          String
+  approvedBy      String   @map("approved_by") @db.Uuid
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  due      StudentFeeDue @relation(fields: [studentFeeDueId], references: [id], onDelete: Restrict)
+  approver User          @relation("FeeAdjustmentApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+
+  @@index([studentFeeDueId])
+  @@index([effectiveDate])
+  @@map("fee_adjustments")
+}
+
+/// Manual payments (no gateway). Never deleted; only status/cheque status may change (trigger).
+model Payment {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// e.g. PAY/2026-27/00001 — gapless per academic year
+  paymentNumber      String    @unique @map("payment_number") @db.VarChar(40)
+  studentEnrolmentId String    @map("student_enrolment_id") @db.Uuid
+  paymentDate        DateTime  @map("payment_date") @db.Date
+  /// SQL: CHECK (amount_received > 0)
+  amountReceived     Decimal   @map("amount_received") @db.Decimal(12, 2)
+  /// SQL: CHECK (payment_mode IN ('CASH','BANK_TRANSFER','CHEQUE'))
+  paymentMode        String    @map("payment_mode") @db.VarChar(20)
+  /// Cheque number / bank transfer UTR
+  referenceNumber    String?   @map("reference_number") @db.VarChar(100)
+  bankName           String?   @map("bank_name") @db.VarChar(100)
+  chequeDate         DateTime? @map("cheque_date") @db.Date
+  /// SQL: cheque_status set (PENDING/CLEARED/BOUNCED) exactly when payment_mode = 'CHEQUE'
+  chequeStatus       String?   @map("cheque_status") @db.VarChar(20)
+  notes              String?
+  recordedBy         String    @map("recorded_by") @db.Uuid
+  /// SQL: CHECK (status IN ('POSTED','VOID','REVERSED'))
+  status             String    @default("POSTED") @db.VarChar(20)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  enrolment   StudentEnrolment    @relation(fields: [studentEnrolmentId], references: [id], onDelete: Restrict)
+  recorder    User                @relation("PaymentRecorder", fields: [recordedBy], references: [id], onDelete: Restrict)
+  allocations PaymentAllocation[]
+  receipt     Receipt?
+
+  @@index([studentEnrolmentId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+/// Allocation of a payment to fee dues. Sum per payment = amount received (enforced by the API).
+model PaymentAllocation {
+  id              String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  paymentId       String  @map("payment_id") @db.Uuid
+  studentFeeDueId String  @map("student_fee_due_id") @db.Uuid
+  /// SQL: CHECK (allocated_amount > 0)
+  allocatedAmount Decimal @map("allocated_amount") @db.Decimal(12, 2)
+
+  payment Payment       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  due     StudentFeeDue @relation(fields: [studentFeeDueId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentId, studentFeeDueId])
+  @@index([studentFeeDueId])
+  @@map("payment_allocations")
+}
+
+/// Issued receipt: number and a frozen snapshot of what was printed. Only cancellation may change.
+model Receipt {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  paymentId          String   @unique @map("payment_id") @db.Uuid
+  /// e.g. RCT/2026-27/00001 — gapless per academic year
+  receiptNumber      String   @unique @map("receipt_number") @db.VarChar(40)
+  issuedAt           DateTime @default(now()) @map("issued_at") @db.Timestamptz(6)
+  issuedBy           String   @map("issued_by") @db.Uuid
+  snapshotJson       Json     @map("snapshot_json")
+  /// SQL: CHECK (NOT is_cancelled OR cancellation_reason IS NOT NULL)
+  isCancelled        Boolean  @default(false) @map("is_cancelled")
+  cancellationReason String?  @map("cancellation_reason")
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  issuer  User    @relation("ReceiptIssuer", fields: [issuedBy], references: [id], onDelete: Restrict)
+
+  @@map("receipts")
+}

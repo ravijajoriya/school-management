@@ -72,6 +72,23 @@ export const AUDIT_ACTIONS = {
   LEAVE_APPROVED: 'leave.approved',
   LEAVE_REJECTED: 'leave.rejected',
   LEAVE_CANCELLED: 'leave.cancelled',
+  // Phase 5
+  FEE_HEAD_CREATED: 'fee_head.created',
+  FEE_HEAD_UPDATED: 'fee_head.updated',
+  FEE_STRUCTURE_CREATED: 'fee_structure.created',
+  FEE_STRUCTURE_UPDATED: 'fee_structure.updated',
+  FEE_DUES_GENERATED: 'fee_due.generated',
+  FEE_CHARGE_ADDED: 'fee_due.charge_added',
+  FEE_DUE_DELETED: 'fee_due.deleted',
+  FEE_ADJUSTMENT_ADDED: 'fee_adjustment.added',
+  PAYMENT_RECORDED: 'payment.recorded',
+  PAYMENT_VOIDED: 'payment.voided',
+  PAYMENT_REVERSED: 'payment.reversed',
+  CHEQUE_CLEARED: 'payment.cheque_cleared',
+  CHEQUE_BOUNCED: 'payment.cheque_bounced',
+  // Development tooling: demo data seed / clear (pnpm demo:seed, pnpm demo:clear)
+  DEMO_DATA_SEEDED: 'demo_data.seeded',
+  DEMO_DATA_CLEARED: 'demo_data.cleared',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

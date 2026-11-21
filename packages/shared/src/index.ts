@@ -14,3 +14,4 @@ export * from './schemas/staff.js';
 export * from './schemas/students.js';
 export * from './schemas/attendance.js';
 export * from './schemas/leave.js';
+export * from './schemas/fees.js';
