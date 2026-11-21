@@ -11,7 +11,8 @@
  * fees, documents, follow-ups, …), then writes `demo_data.cleared`.
  *
  * Demo records are easy to recognise: admission numbers DEMO-0001…, employee codes DEMO-EMP-01…,
- * enquiry numbers DEMO-ENQ-0001…, receipts DEMO-RCT/…, logins …@demo.local, website slugs demo-….
+ * enquiry numbers DEMO-ENQ-0001…, receipts DEMO-RCT/…, logins …@demo.local, website slugs demo-…,
+ * vehicles DEMO-…, asset codes DEMO-AST-…, certificates DEMO-…/….
  */
 import {
   AUDIT_ACTIONS,
@@ -19,6 +20,7 @@ import {
   ROLE_CODES,
   DEFAULT_GRADE_BANDS,
   amountInWords,
+  type CertificateSnapshot,
   type PaymentMode,
   type ReceiptSnapshot,
 } from '@school/shared';
@@ -29,6 +31,8 @@ import { dayToDate, isoDay, schoolDate } from '../../common/utils/content.js';
 import { paiseToDb } from '../../common/utils/money.js';
 import { PasswordService } from '../../modules/auth/password.service.js';
 import { syncDueStatuses } from '../../modules/fees/fees-core.js';
+import { pronouns, renderCertificate } from '../../modules/certificates/certificate-render.js';
+import { longDate } from '../../common/utils/school.js';
 
 export const DEMO_PASSWORD = 'Demo@1234';
 
@@ -55,6 +59,14 @@ export interface DemoManifest {
   /** Added with Phase 6. */
   gradingScaleIds: string[];
   examIds: string[];
+  /** Added with Phase 7. */
+  vehicleIds: string[];
+  routeIds: string[];
+  complaintIds: string[];
+  inventoryCategoryIds: string[];
+  inventoryItemIds: string[];
+  payrollRunIds: string[];
+  idCardBatchIds: string[];
 }
 
 type Log = (message: string) => void;
@@ -96,6 +108,13 @@ const EMPTY_LISTS = {
   feeStructureIds: [],
   gradingScaleIds: [],
   examIds: [],
+  vehicleIds: [],
+  routeIds: [],
+  complaintIds: [],
+  inventoryCategoryIds: [],
+  inventoryItemIds: [],
+  payrollRunIds: [],
+  idCardBatchIds: [],
 };
 
 /** The active `demo_data.seeded` manifest, or null when demo data is not present. */
@@ -490,6 +509,13 @@ export async function seedDemoData(
     feeStructureIds: [],
     gradingScaleIds: [],
     examIds: [],
+    vehicleIds: [],
+    routeIds: [],
+    complaintIds: [],
+    inventoryCategoryIds: [],
+    inventoryItemIds: [],
+    payrollRunIds: [],
+    idCardBatchIds: [],
   };
   const counts: Record<string, number> = {};
 
@@ -571,7 +597,7 @@ export async function seedDemoData(
           code: 'DEMO_OFFICE_ASSISTANT',
           name: 'Office Assistant (demo)',
           description:
-            'Demo role: can view students, staff, attendance, leave and fees, collect fees and handle enquiries. Removed by demo:clear.',
+            'Demo role: can view students, staff, attendance, leave and fees, collect fees, handle enquiries and complaints, issue certificates. Removed by demo:clear.',
         },
       }));
     manifest.roleIds.push(officeRole.id);
@@ -589,6 +615,11 @@ export async function seedDemoData(
             PERMISSIONS.CONTACT_MESSAGES_MANAGE,
             PERMISSIONS.FEES_READ,
             PERMISSIONS.FEES_COLLECT,
+            PERMISSIONS.TRANSPORT_READ,
+            PERMISSIONS.COMPLAINTS_READ,
+            PERMISSIONS.COMPLAINTS_MANAGE,
+            PERMISSIONS.INVENTORY_READ,
+            PERMISSIONS.CERTIFICATES_ISSUE,
           ],
         },
       },
@@ -1716,6 +1747,21 @@ export async function seedDemoData(
       manifest.noticeIds.push(row.id);
     }
 
+    // --- Phase 7: school operations -----------------------------------------------------------
+    await seedOperations(tx, {
+      manifest,
+      counts,
+      adminId: admin.id,
+      officeUserId: (await tx.user.findUniqueOrThrow({ where: { email: 'office@demo.local' } })).id,
+      employeeId,
+      enrolments,
+      sections,
+      today,
+      school,
+      yearId: year.id,
+      yearName: year.name,
+    });
+
     counts.employees = manifest.employeeIds.length;
     counts.logins = manifest.userIds.length;
 
@@ -1753,10 +1799,376 @@ export async function seedDemoData(
       email: 'office@demo.local',
       password: DEMO_PASSWORD,
       role: 'Office Assistant (demo)',
-      note: 'Limited office role: views records, collects fees, handles enquiries',
+      note: 'Limited office role: views records, collects fees, handles enquiries and complaints, issues certificates',
     },
   ];
   return { manifest, counts, logins };
+}
+
+// --- Phase 7 demo content ----------------------------------------------------------------------
+
+interface OperationsContext {
+  manifest: DemoManifest;
+  counts: Record<string, number>;
+  adminId: string;
+  officeUserId: string;
+  employeeId: Record<string, string>;
+  enrolments: { id: string; sectionId: string; exitDate: string | null; className: string }[];
+  sections: { def: { className: string }; id: string }[];
+  today: string;
+  school: { name: string; address: string; phone: string; email: string };
+  yearId: string;
+  yearName: string;
+}
+
+/** Monthly pay by staff key (earnings and deductions entered as amounts, as the school would). */
+const DEMO_PAY: Record<string, { basic: number; da: number; hra: number }> = {
+  rekha: { basic: 52000, da: 9000, hra: 7800 },
+  ramesh: { basic: 24000, da: 4000, hra: 3600 },
+};
+const DEFAULT_PAY = { basic: 32000, da: 5500, hra: 4800 };
+
+async function seedOperations(tx: Tx, c: OperationsContext) {
+  const { manifest, counts, today } = c;
+  const riders = c.enrolments.filter((e) => !e.exitDate);
+
+  // Transport: two buses and two routes; a dozen students ride.
+  const bus1 = await tx.vehicle.create({
+    data: {
+      registrationNumber: 'DEMO RJ14 PB 4521',
+      vehicleType: 'Bus',
+      capacity: 40,
+      insuranceExpiry: dayToDate(addDays(today, 200)),
+      permitExpiry: dayToDate(addDays(today, 18)),
+    },
+  });
+  const van = await tx.vehicle.create({
+    data: {
+      registrationNumber: 'DEMO RJ14 PC 0987',
+      vehicleType: 'Van',
+      capacity: 12,
+      insuranceExpiry: dayToDate(addDays(today, 320)),
+      permitExpiry: dayToDate(addDays(today, 280)),
+    },
+  });
+  manifest.vehicleIds.push(bus1.id, van.id);
+  const toTime = (t: string) => new Date(`1970-01-01T${t}:00Z`);
+  const routeDefs = [
+    {
+      name: 'Demo Route 1 – Vaishali Nagar',
+      vehicleId: bus1.id,
+      stops: [
+        ['Gandhi Path', '07:05', '14:20'],
+        ['Amrapali Circle', '07:15', '14:10'],
+        ['Queens Road', '07:25', '14:00'],
+      ],
+    },
+    {
+      name: 'Demo Route 2 – Mansarovar',
+      vehicleId: van.id,
+      stops: [
+        ['Shipra Path', '07:10', '14:15'],
+        ['VT Road', '07:20', '14:05'],
+      ],
+    },
+  ] as const;
+  let riderIndex = 0;
+  for (const def of routeDefs) {
+    const route = await tx.transportRoute.create({
+      data: {
+        name: def.name,
+        vehicleId: def.vehicleId,
+        attendantEmployeeId: c.employeeId.mahesh,
+        stops: {
+          create: def.stops.map(([name, pick, drop], i) => ({
+            name,
+            pickupTime: toTime(pick),
+            dropTime: toTime(drop),
+            sequenceNo: i + 1,
+          })),
+        },
+      },
+      include: { stops: true },
+    });
+    manifest.routeIds.push(route.id);
+    for (let i = 0; i < 6 && riderIndex < riders.length; i++, riderIndex += 3) {
+      await tx.studentTransport.create({
+        data: {
+          studentEnrolmentId: riders[riderIndex].id,
+          routeId: route.id,
+          routeStopId: route.stops[i % route.stops.length].id,
+          startDate: dayToDate(addDays(today, -30)),
+          createdBy: c.adminId,
+        },
+      });
+      counts.transportRiders = (counts.transportRiders ?? 0) + 1;
+    }
+  }
+
+  // Complaints: one open, one being handled, one resolved.
+  const complaints = [
+    {
+      category: 'TRANSPORT',
+      subject: 'Bus arrives late at Amrapali Circle',
+      description: 'The morning bus has been 15–20 minutes late this week.',
+      submittedByName: 'Ramesh Sharma',
+      contactPhone: '9829012345',
+      status: 'OPEN',
+    },
+    {
+      category: 'FACILITIES',
+      subject: 'Water cooler not working (2nd floor)',
+      description: 'The water cooler near Class 8 has not been working since Monday.',
+      submittedByName: 'Class 8 A monitor',
+      status: 'IN_PROGRESS',
+      assignedTo: c.officeUserId,
+    },
+    {
+      category: 'FEES',
+      subject: 'Receipt not received for October fee',
+      description: 'Paid in cash at the counter but did not get a receipt.',
+      submittedByName: 'Sunita Meena',
+      contactPhone: '9414023456',
+      status: 'RESOLVED',
+      assignedTo: c.officeUserId,
+      resolutionNotes: 'Duplicate receipt printed and handed over to the parent.',
+    },
+  ];
+  for (const x of complaints) {
+    const [{ n }] = await tx.$queryRaw<
+      { n: bigint }[]
+    >`SELECT nextval('complaint_reference_seq') AS n`;
+    const row = await tx.complaint.create({
+      data: {
+        referenceNumber: `CMP-${today.slice(0, 4)}-${n.toString().padStart(5, '0')}`,
+        category: x.category,
+        subject: x.subject,
+        description: x.description,
+        submittedByName: x.submittedByName,
+        contactPhone: x.contactPhone ?? null,
+        status: x.status,
+        assignedTo: x.assignedTo ?? null,
+        resolutionNotes: x.resolutionNotes ?? null,
+        resolvedAt: x.status === 'RESOLVED' ? hoursAgo(20) : null,
+        createdBy: c.adminId,
+        createdAt: hoursAgo(72),
+      },
+    });
+    manifest.complaintIds.push(row.id);
+  }
+  counts.complaints = complaints.length;
+
+  // Parent–teacher meetings for Anil's Class 8 students: two upcoming, one held.
+  const class8 = c.sections.find((s) => s.def.className === 'Class 8');
+  const class8Students = riders.filter((e) => e.sectionId === class8?.id).slice(0, 3);
+  const meetingTimes = [
+    {
+      at: new Date(`${addDays(today, 2)}T10:30:00+05:30`),
+      status: 'SCHEDULED',
+      purpose: 'Maths progress after unit test',
+    },
+    {
+      at: new Date(`${addDays(today, 3)}T11:00:00+05:30`),
+      status: 'SCHEDULED',
+      purpose: 'Attendance',
+    },
+    {
+      at: new Date(`${addDays(today, -5)}T12:00:00+05:30`),
+      status: 'COMPLETED',
+      purpose: 'Homework habits',
+      notes: 'Parent will check the diary daily; follow up in a month.',
+    },
+  ];
+  for (const [i, e] of class8Students.entries()) {
+    const t = meetingTimes[i];
+    await tx.parentTeacherMeeting.create({
+      data: {
+        studentEnrolmentId: e.id,
+        teacherEmployeeId: c.employeeId.anil,
+        meetingAt: t.at,
+        venue: 'Class 8 A',
+        purpose: t.purpose,
+        status: t.status,
+        notes: t.notes ?? null,
+        createdBy: c.adminId,
+      },
+    });
+  }
+  counts.meetings = class8Students.length;
+
+  // Inventory: a small asset register.
+  const cats: Record<string, string> = {};
+  for (const name of ['Demo – IT equipment', 'Demo – Furniture', 'Demo – Sports']) {
+    const row = await tx.inventoryCategory.create({ data: { name } });
+    cats[name] = row.id;
+    manifest.inventoryCategoryIds.push(row.id);
+  }
+  const items: [string, string, number, string, string, number | null, string][] = [
+    ['Demo – IT equipment', 'Desktop computer', 20, 'pcs', 'Computer lab', 32000, 'GOOD'],
+    ['Demo – IT equipment', 'Projector', 3, 'pcs', 'Smart classes', 28000, 'NEEDS_REPAIR'],
+    ['Demo – IT equipment', 'Laser printer', 2, 'pcs', 'Office', 15500, 'GOOD'],
+    ['Demo – Furniture', 'Student desk (dual)', 240, 'pcs', 'Classrooms', 3200, 'GOOD'],
+    ['Demo – Furniture', 'Teacher chair', 30, 'pcs', 'Classrooms', 1800, 'DAMAGED'],
+    ['Demo – Sports', 'Football', 12, 'pcs', 'Sports room', 650, 'GOOD'],
+    ['Demo – Sports', 'Cricket kit', 2, 'sets', 'Sports room', null, 'GOOD'],
+  ];
+  for (const [i, [cat, name, qty, unit, location, cost, condition]] of items.entries()) {
+    const row = await tx.inventoryItem.create({
+      data: {
+        categoryId: cats[cat],
+        assetCode: `DEMO-AST-${String(i + 1).padStart(3, '0')}`,
+        name,
+        quantity: qty.toString(),
+        unit,
+        location,
+        conditionStatus: condition,
+        purchaseDate: dayToDate(addDays(today, -400 + i * 30)),
+        purchaseCost: cost === null ? null : paiseToDb(cost * qty * 100),
+      },
+    });
+    manifest.inventoryItemIds.push(row.id);
+  }
+  counts.inventoryItems = items.length;
+
+  // Payroll: last month, paid (needs the starter salary components from db:seed).
+  const comps = new Map((await tx.salaryComponent.findMany()).map((x) => [x.name, x]));
+  const [basic, da, hra, pf, pt] = [
+    'Basic pay',
+    'Dearness allowance (DA)',
+    'House rent allowance (HRA)',
+    'Provident fund (PF)',
+    'Professional tax',
+  ].map((n) => comps.get(n));
+  const last = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
+  last.setUTCMonth(last.getUTCMonth() - 1);
+  const periodStart = isoDay(last);
+  const periodEnd = isoDay(new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth() + 1, 0)));
+  const runExists = await tx.payrollRun.findUnique({
+    where: { periodStart: dayToDate(periodStart) },
+  });
+  if (basic && da && hra && pf && pt && !runExists) {
+    const run = await tx.payrollRun.create({
+      data: {
+        periodStart: dayToDate(periodStart),
+        periodEnd: dayToDate(periodEnd),
+        createdBy: c.adminId,
+      },
+    });
+    manifest.payrollRunIds.push(run.id);
+    for (const [key, empId] of Object.entries(c.employeeId)) {
+      const p = DEMO_PAY[key] ?? DEFAULT_PAY;
+      const pfAmount = Math.round(p.basic * 0.12);
+      const lines = [
+        { comp: basic, amount: p.basic },
+        { comp: da, amount: p.da },
+        { comp: hra, amount: p.hra },
+        { comp: pf, amount: pfAmount },
+        { comp: pt, amount: 200 },
+      ];
+      const gross = p.basic + p.da + p.hra;
+      const ded = pfAmount + 200;
+      await tx.payrollRecord.create({
+        data: {
+          payrollRunId: run.id,
+          employeeId: empId,
+          grossAmount: paiseToDb(gross * 100),
+          deductionAmount: paiseToDb(ded * 100),
+          netAmount: paiseToDb((gross - ded) * 100),
+          items: {
+            create: lines.map((l) => ({
+              salaryComponentId: l.comp.id,
+              componentName: l.comp.name,
+              componentType: l.comp.componentType,
+              amount: paiseToDb(l.amount * 100),
+            })),
+          },
+        },
+      });
+    }
+    await tx.payrollRun.update({
+      where: { id: run.id },
+      data: { status: 'APPROVED', approvedBy: c.adminId, approvedAt: hoursAgo(24 * 5) },
+    });
+    await tx.payrollRun.update({
+      where: { id: run.id },
+      data: { status: 'PAID', paidAt: hoursAgo(24 * 4) },
+    });
+    counts.payrollEntries = Object.keys(c.employeeId).length;
+  }
+
+  // One Bonafide certificate (needs the starter templates from db:seed).
+  const bonafide = await tx.certificateTemplate.findUnique({ where: { code: 'BONAFIDE' } });
+  const certFor = riders[1];
+  if (bonafide && certFor) {
+    const e = await tx.studentEnrolment.findUniqueOrThrow({
+      where: { id: certFor.id },
+      include: { student: { include: { guardians: true } }, class: true, section: true },
+    });
+    const s = e.student;
+    const name = [s.firstName, s.middleName, s.lastName].filter(Boolean).join(' ');
+    const p = pronouns(s.gender);
+    const father =
+      s.guardians.find((g) => g.relationship === 'FATHER') ?? s.guardians.find((g) => g.isPrimary);
+    const number = `DEMO-BONAFIDE/${today.slice(0, 4)}/0001`;
+    const snapshot: CertificateSnapshot = {
+      school: c.school,
+      title: bonafide.name,
+      certificateNumber: number,
+      issuedOn: today,
+      issuedBy: 'Demo data',
+      student: { name, admissionNumber: s.admissionNumber },
+      paragraphs: renderCertificate(bonafide.templateHtml, {
+        student_name: name,
+        admission_number: s.admissionNumber,
+        date_of_birth: longDate(s.dateOfBirth),
+        gender_pronoun: p.subject,
+        gender_possessive: p.possessive,
+        child_relation: p.child,
+        father_name: father?.fullName,
+        class_name: e.class.name,
+        section_name: e.section.name,
+        academic_year: c.yearName,
+        purpose: 'scholarship application',
+        conduct: 'good',
+        school_name: c.school.name,
+        issue_date: longDate(today),
+        certificate_number: number,
+      }),
+    };
+    await tx.certificateIssue.create({
+      data: {
+        certificateNumber: number,
+        templateId: bonafide.id,
+        studentId: s.id,
+        studentEnrolmentId: e.id,
+        issuedOn: dayToDate(today),
+        issuedBy: c.adminId,
+        snapshot: snapshot as unknown as Prisma.InputJsonValue,
+      },
+    });
+    counts.certificates = 1;
+  }
+
+  // ID cards for Class 1 A (needs the starter ID card designs from db:seed).
+  const studentCard = await tx.idCardTemplate.findFirst({
+    where: { audience: 'STUDENT', isActive: true },
+  });
+  const class1 = c.sections.find((s) => s.def.className === 'Class 1');
+  if (studentCard && class1) {
+    const cards = await tx.studentEnrolment.count({
+      where: { sectionId: class1.id, status: 'ACTIVE' },
+    });
+    const batch = await tx.idCardBatch.create({
+      data: {
+        templateId: studentCard.id,
+        academicYearId: c.yearId,
+        filters: { sectionIds: [class1.id] },
+        cardCount: cards,
+        createdBy: c.adminId,
+      },
+    });
+    manifest.idCardBatchIds.push(batch.id);
+  }
 }
 
 // --- Clear -----------------------------------------------------------------------------------
@@ -1821,6 +2233,102 @@ export async function clearDemoData(
         select: { id: true },
       })
     ).map((e) => e.id);
+
+    // Phase 7 rows that point at demo students, staff or the demo year.
+    count(
+      'transport assignments',
+      (
+        await tx.studentTransport.deleteMany({
+          where: {
+            OR: [{ studentEnrolmentId: { in: enrolmentIds } }, { routeId: { in: m.routeIds } }],
+          },
+        })
+      ).count,
+    );
+    await tx.routeStop.deleteMany({ where: { routeId: { in: m.routeIds } } });
+    count(
+      'routes',
+      (await tx.transportRoute.deleteMany({ where: { id: { in: m.routeIds } } })).count,
+    );
+    await tx.transportRoute.updateMany({
+      where: {
+        OR: [
+          { driverEmployeeId: { in: m.employeeIds } },
+          { attendantEmployeeId: { in: m.employeeIds } },
+        ],
+      },
+      data: { driverEmployeeId: null, attendantEmployeeId: null },
+    });
+    await tx.transportRoute.updateMany({
+      where: { vehicleId: { in: m.vehicleIds } },
+      data: { vehicleId: null },
+    });
+    count('vehicles', (await tx.vehicle.deleteMany({ where: { id: { in: m.vehicleIds } } })).count);
+    count(
+      'complaints',
+      (await tx.complaint.deleteMany({ where: { id: { in: m.complaintIds } } })).count,
+    );
+    count(
+      'parent meetings',
+      (
+        await tx.parentTeacherMeeting.deleteMany({
+          where: {
+            OR: [
+              { studentEnrolmentId: { in: enrolmentIds } },
+              { teacherEmployeeId: { in: m.employeeIds } },
+            ],
+          },
+        })
+      ).count,
+    );
+    count(
+      'inventory items',
+      (await tx.inventoryItem.deleteMany({ where: { id: { in: m.inventoryItemIds } } })).count,
+    );
+    for (const id of m.inventoryCategoryIds) {
+      if (await tx.inventoryItem.count({ where: { categoryId: id } })) {
+        kept.push('An inventory category used by your own items');
+        continue;
+      }
+      count(
+        'inventory categories',
+        (await tx.inventoryCategory.deleteMany({ where: { id } })).count,
+      );
+    }
+    const payrollRecordIds = (
+      await tx.payrollRecord.findMany({
+        where: {
+          OR: [{ payrollRunId: { in: m.payrollRunIds } }, { employeeId: { in: m.employeeIds } }],
+        },
+        select: { id: true },
+      })
+    ).map((r) => r.id);
+    await tx.payrollItem.deleteMany({ where: { payrollRecordId: { in: payrollRecordIds } } });
+    count(
+      'payroll entries',
+      (await tx.payrollRecord.deleteMany({ where: { id: { in: payrollRecordIds } } })).count,
+    );
+    count(
+      'payroll months',
+      (await tx.payrollRun.deleteMany({ where: { id: { in: m.payrollRunIds } } })).count,
+    );
+    count(
+      'certificates',
+      (await tx.certificateIssue.deleteMany({ where: { studentId: { in: studentIds } } })).count,
+    );
+    count(
+      'ID card batches',
+      (
+        await tx.idCardBatch.deleteMany({
+          where: {
+            OR: [
+              { id: { in: m.idCardBatchIds } },
+              ...(m.academicYearId ? [{ academicYearId: m.academicYearId }] : []),
+            ],
+          },
+        })
+      ).count,
+    );
 
     count(
       'attendance records',

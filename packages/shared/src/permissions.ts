@@ -56,6 +56,23 @@ export const PERMISSIONS = {
   MARKS_APPROVE: 'marks.approve',
   TIMETABLE_READ: 'timetable.read',
   TIMETABLE_MANAGE: 'timetable.manage',
+
+  // Phase 7 — school operations
+  TRANSPORT_READ: 'transport.read',
+  TRANSPORT_MANAGE: 'transport.manage',
+  COMPLAINTS_READ: 'complaints.read',
+  COMPLAINTS_MANAGE: 'complaints.manage',
+  MEETINGS_OWN: 'meetings.schedule_own',
+  MEETINGS_READ: 'meetings.read',
+  MEETINGS_MANAGE: 'meetings.manage',
+  INVENTORY_READ: 'inventory.read',
+  INVENTORY_MANAGE: 'inventory.manage',
+  PAYROLL_READ: 'payroll.read',
+  PAYROLL_MANAGE: 'payroll.manage',
+  PAYROLL_APPROVE: 'payroll.approve',
+  CERTIFICATES_ISSUE: 'certificates.issue',
+  CERTIFICATES_TEMPLATES: 'certificates.manage_templates',
+  ID_CARDS_GENERATE: 'id_cards.generate',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -195,6 +212,65 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     name: 'Create, edit and publish timetables',
     module: 'timetable',
   },
+  {
+    code: PERMISSIONS.TRANSPORT_READ,
+    name: 'View vehicles, routes and student transport',
+    module: 'transport',
+  },
+  {
+    code: PERMISSIONS.TRANSPORT_MANAGE,
+    name: 'Manage vehicles, routes and stops; assign students to routes',
+    module: 'transport',
+  },
+  { code: PERMISSIONS.COMPLAINTS_READ, name: 'View the complaint register', module: 'complaints' },
+  {
+    code: PERMISSIONS.COMPLAINTS_MANAGE,
+    name: 'Log, assign and resolve complaints',
+    module: 'complaints',
+  },
+  {
+    code: PERMISSIONS.MEETINGS_OWN,
+    name: 'Schedule and record own parent–teacher meetings',
+    module: 'meetings',
+  },
+  { code: PERMISSIONS.MEETINGS_READ, name: 'View all parent–teacher meetings', module: 'meetings' },
+  {
+    code: PERMISSIONS.MEETINGS_MANAGE,
+    name: 'Schedule and update parent–teacher meetings for any teacher',
+    module: 'meetings',
+  },
+  { code: PERMISSIONS.INVENTORY_READ, name: 'View the inventory register', module: 'inventory' },
+  {
+    code: PERMISSIONS.INVENTORY_MANAGE,
+    name: 'Add and edit inventory categories and items',
+    module: 'inventory',
+  },
+  { code: PERMISSIONS.PAYROLL_READ, name: 'View payroll and payslips', module: 'payroll' },
+  {
+    code: PERMISSIONS.PAYROLL_MANAGE,
+    name: 'Set up salary components and prepare monthly payroll',
+    module: 'payroll',
+  },
+  {
+    code: PERMISSIONS.PAYROLL_APPROVE,
+    name: 'Approve, reopen and mark payroll as paid',
+    module: 'payroll',
+  },
+  {
+    code: PERMISSIONS.CERTIFICATES_ISSUE,
+    name: 'Issue and reprint TC, bonafide and character certificates',
+    module: 'certificates',
+  },
+  {
+    code: PERMISSIONS.CERTIFICATES_TEMPLATES,
+    name: 'Edit certificate templates',
+    module: 'certificates',
+  },
+  {
+    code: PERMISSIONS.ID_CARDS_GENERATE,
+    name: 'Design ID card templates and print student and staff ID cards',
+    module: 'id_cards',
+  },
 ];
 
 /**
@@ -202,7 +278,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
  * created, so later changes made under Roles & Permissions are never overwritten.
  */
 export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<string, readonly PermissionCode[]>> = {
-  TEACHER: [PERMISSIONS.ATTENDANCE_MARK, PERMISSIONS.LEAVE_APPLY, PERMISSIONS.MARKS_ENTER],
+  TEACHER: [
+    PERMISSIONS.ATTENDANCE_MARK,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.MARKS_ENTER,
+    PERMISSIONS.MEETINGS_OWN,
+  ],
 };
 
 /**
@@ -213,6 +294,7 @@ export const SELF_SERVICE_PERMISSIONS: ReadonlySet<PermissionCode> = new Set([
   PERMISSIONS.ATTENDANCE_MARK,
   PERMISSIONS.LEAVE_APPLY,
   PERMISSIONS.MARKS_ENTER,
+  PERMISSIONS.MEETINGS_OWN,
 ]);
 
 /** True when the user belongs in the Admin Portal (ADMIN role or any administrative permission). */

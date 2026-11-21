@@ -63,7 +63,12 @@ describe('Users, roles & permissions (e2e)', () => {
       expect(res.body).toMatchObject({
         email: TEACHER.email,
         roles: ['TEACHER'],
-        permissions: ['attendance.mark_assigned', 'leave.apply', 'marks.enter_assigned'],
+        permissions: [
+          'attendance.mark_assigned',
+          'leave.apply',
+          'marks.enter_assigned',
+          'meetings.schedule_own',
+        ],
       });
     });
 

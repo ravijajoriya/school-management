@@ -36,6 +36,14 @@ const UNIQUE_MESSAGES: Record<string, string> = {
     'academicYearId: The student is already enrolled in this academic year',
   section_id_roll_number: 'rollNumber: This roll number is already used in the section',
   converted_student_id: 'This enquiry has already been converted',
+  registration_number: 'registrationNumber: A vehicle with this registration number already exists',
+  route_id_name: 'stops: Two stops on this route have the same name',
+  asset_code: 'assetCode: This asset code is already in use',
+  period_start: 'month: Payroll for this month already exists',
+  payroll_run_id_employee_id: 'employeeId: This staff member is already in the payroll',
+  payroll_record_id_salary_component_id: 'lines: Each component can appear only once',
+  certificate_number: 'Another certificate was issued at the same moment — try again',
+  teacher_employee_id_meeting_at: 'meetingAt: The teacher already has a meeting at this time',
   enrolment_date_session:
     'entries: Attendance for this day was just saved by someone else — reload and try again',
 };
@@ -43,6 +51,8 @@ const UNIQUE_MESSAGES: Record<string, string> = {
 /** Messages for exclusion constraints (Postgres 23P01), keyed by constraint name. */
 const EXCLUSION_MESSAGES: Record<string, string> = {
   leave_requests_no_overlap: 'startDate: This overlaps another pending or approved leave request',
+  student_transport_no_overlap:
+    'startDate: The student already has transport for these dates — end the current route first',
 };
 
 /**

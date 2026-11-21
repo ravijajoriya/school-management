@@ -22,6 +22,12 @@ import { LeaveModule } from './modules/leave/leave.module.js';
 import { FeesModule } from './modules/fees/fees.module.js';
 import { ExamsModule } from './modules/exams/exams.module.js';
 import { TimetableModule } from './modules/timetable/timetable.module.js';
+import { TransportModule } from './modules/transport/transport.module.js';
+import { ComplaintsModule } from './modules/complaints/complaints.module.js';
+import { MeetingsModule } from './modules/meetings/meetings.module.js';
+import { InventoryModule } from './modules/inventory/inventory.module.js';
+import { PayrollModule } from './modules/payroll/payroll.module.js';
+import { CertificatesModule } from './modules/certificates/certificates.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -88,6 +94,12 @@ import { UsersModule } from './modules/users/users.module.js';
     FeesModule,
     ExamsModule,
     TimetableModule,
+    TransportModule,
+    ComplaintsModule,
+    MeetingsModule,
+    InventoryModule,
+    PayrollModule,
+    CertificatesModule,
     HealthModule,
   ],
   providers: [

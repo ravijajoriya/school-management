@@ -38,9 +38,11 @@ export async function resetDatabase(
   await prisma.$transaction([
     prisma.$executeRawUnsafe('ALTER TABLE "audit_logs" DISABLE TRIGGER USER'),
     prisma.$executeRawUnsafe(
-      'TRUNCATE "audit_logs", "timetable_entries", "timetables", "mark_entries", "exam_subjects", "examinations", "grade_bands", "grading_scales", "receipts", "payment_allocations", "payments", "fee_adjustments", "student_fee_dues", "fee_structure_items", "fee_structures", "fee_heads", "attendance_records", "leave_requests", "refresh_tokens", "user_roles", "role_permissions", "teacher_assignments", "student_documents", "student_enrolments", "student_guardians", "employee_documents", "sections", "class_subjects", "subjects", "academic_years", "enquiry_follow_ups", "admission_enquiries", "students", "employees", "classes", "contact_messages", "website_pages", "media_assets", "events", "internal_notices", "announcements", "users", "roles", "permissions" CASCADE',
+      'TRUNCATE "audit_logs", "student_transport", "route_stops", "transport_routes", "vehicles", "complaints", "parent_teacher_meetings", "inventory_items", "inventory_categories", "payroll_items", "payroll_records", "payroll_runs", "salary_components", "certificate_issues", "certificate_templates", "id_card_batches", "id_card_templates", "timetable_entries", "timetables", "mark_entries", "exam_subjects", "examinations", "grade_bands", "grading_scales", "receipts", "payment_allocations", "payments", "fee_adjustments", "student_fee_dues", "fee_structure_items", "fee_structures", "fee_heads", "attendance_records", "leave_requests", "refresh_tokens", "user_roles", "role_permissions", "teacher_assignments", "student_documents", "student_enrolments", "student_guardians", "employee_documents", "sections", "class_subjects", "subjects", "academic_years", "enquiry_follow_ups", "admission_enquiries", "students", "employees", "classes", "contact_messages", "website_pages", "media_assets", "events", "internal_notices", "announcements", "users", "roles", "permissions" CASCADE',
     ),
     prisma.$executeRawUnsafe('ALTER TABLE "audit_logs" ENABLE TRIGGER USER'),
+    prisma.$executeRawUnsafe('ALTER SEQUENCE "complaint_reference_seq" RESTART WITH 1'),
+    prisma.$executeRawUnsafe('ALTER SEQUENCE "inventory_asset_code_seq" RESTART WITH 1'),
   ]);
   await seedDatabase(prisma, {
     admin: { fullName: 'Test Admin', email: ADMIN.email, password: ADMIN.password },

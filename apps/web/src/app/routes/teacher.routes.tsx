@@ -10,6 +10,8 @@ const TEACHER_NAV: PortalNavItem[] = [
   { to: '/teacher/marks', label: 'Marks entry', permissions: [PERMISSIONS.MARKS_ENTER] },
   { to: '/teacher/timetable', label: 'My timetable' },
   { to: '/teacher/leave', label: 'My leave', permissions: [PERMISSIONS.LEAVE_APPLY] },
+  { to: '/teacher/meetings', label: 'Parent meetings', permissions: [PERMISSIONS.MEETINGS_OWN] },
+  { to: '/teacher/payslips', label: 'My payslips' },
 ];
 
 const attendance = () => import('@/features/attendance/pages/TeacherAttendancePages');
@@ -80,6 +82,21 @@ export const teacherRoutes: RouteObject = {
         guarded('leave', PERMISSIONS.LEAVE_APPLY, async () => ({
           Component: (await import('@/features/leave/LeavePages')).MyLeavePage,
         })),
+        guarded('meetings', PERMISSIONS.MEETINGS_OWN, async () => ({
+          Component: (await import('@/features/operations/pages/MeetingPages')).TeacherMeetingsPage,
+        })),
+        {
+          path: 'payslips',
+          lazy: async () => ({
+            Component: (await import('@/features/operations/pages/PayrollPages')).MyPayslipsPage,
+          }),
+        },
+        {
+          path: 'payslips/:recordId',
+          lazy: async () => ({
+            Component: (await import('@/features/operations/pages/PayrollPages')).MyPayslipPage,
+          }),
+        },
       ],
     },
   ],

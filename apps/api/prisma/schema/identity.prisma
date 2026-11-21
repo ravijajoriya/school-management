@@ -81,6 +81,17 @@ model User {
   marksApproved     MarkEntry[] @relation("MarkApprovedBy")
   timetablesCreated Timetable[] @relation("TimetableCreator")
 
+  // Phase 7
+  transportAssigned    StudentTransport[]     @relation("StudentTransportCreator")
+  complaintsAssigned   Complaint[]            @relation("ComplaintAssignee")
+  complaintsCreated    Complaint[]            @relation("ComplaintCreator")
+  meetingsCreated      ParentTeacherMeeting[] @relation("MeetingCreator")
+  payrollRunsCreated   PayrollRun[]           @relation("PayrollRunCreator")
+  payrollRunsApproved  PayrollRun[]           @relation("PayrollRunApprover")
+  certificateTemplates CertificateTemplate[]  @relation("CertificateTemplateEditor")
+  certificatesIssued   CertificateIssue[]     @relation("CertificateIssuer")
+  idCardBatchesCreated IdCardBatch[]          @relation("IdCardBatchCreator")
+
   @@map("users")
 }
 

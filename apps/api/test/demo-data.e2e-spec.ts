@@ -51,6 +51,19 @@ async function snapshot(ctx: TestContext) {
       ['marks', p.markEntry.count()],
       ['timetables', p.timetable.count()],
       ['timetableEntries', p.timetableEntry.count()],
+      ['vehicles', p.vehicle.count()],
+      ['routes', p.transportRoute.count()],
+      ['routeStops', p.routeStop.count()],
+      ['riders', p.studentTransport.count()],
+      ['complaints', p.complaint.count()],
+      ['meetings', p.parentTeacherMeeting.count()],
+      ['inventoryCategories', p.inventoryCategory.count()],
+      ['inventoryItems', p.inventoryItem.count()],
+      ['payrollRuns', p.payrollRun.count()],
+      ['payrollRecords', p.payrollRecord.count()],
+      ['payrollItems', p.payrollItem.count()],
+      ['certificates', p.certificateIssue.count()],
+      ['idCardBatches', p.idCardBatch.count()],
     ].map(async ([k, v]) => [k, await v] as const),
   );
   return Object.fromEntries(entries);
@@ -104,6 +117,26 @@ describe('Demo data seed & clear (e2e)', () => {
       expect((await api('get', `/timetables/${tt.id}/clashes`).expect(200)).body).toEqual([]);
     }
     await expect(seedDemoData(ctx.prisma)).rejects.toThrow(/already present/);
+
+    // Phase 7: operations demo content, checked through the API as a demo teacher.
+    expect(counts.transportRiders).toBeGreaterThan(0);
+    expect(counts.complaints).toBe(3);
+    expect(counts.payrollEntries).toBe(9);
+    const anil = (await login(ctx.http, 'anil@demo.local', DEMO_PASSWORD)).token;
+    const meetings = (await api('get', '/meetings?status=SCHEDULED', anil).expect(200)).body;
+    expect(meetings.total).toBe(2);
+    const [slip] = (await api('get', '/payroll/mine', anil).expect(200)).body;
+    expect(slip).toMatchObject({ status: 'PAID', net: 32000 + 5500 + 4800 - 3840 - 200 });
+    // A meeting scheduled while testing goes away with the demo data too.
+    const { studentEnrolmentId } = await ctx.prisma.parentTeacherMeeting.findUniqueOrThrow({
+      where: { id: meetings.items[0].id },
+    });
+    await api('post', '/meetings', anil)
+      .send({
+        enrolmentId: studentEnrolmentId,
+        meetingAt: new Date(Date.now() + 9 * 86_400_000).toISOString(),
+      })
+      .expect(201);
 
     // The demo works through the real API: a demo teacher marks today; the office reviews.
     const sunita = (await login(ctx.http, logins[0].email, DEMO_PASSWORD)).token;
@@ -166,8 +199,11 @@ describe('Demo data seed & clear (e2e)', () => {
 
     const result = await clearDemoData(ctx.prisma);
     expect(result.cleared).toBe(true);
-    // Sunita signed in, so the (unchangeable) audit log refers to her: kept but deactivated.
-    expect(result.kept).toEqual([expect.stringMatching(/sunita@demo.local.*deactivated/)]);
+    // Sunita and Anil signed in, so the (unchangeable) audit log refers to them: kept but deactivated.
+    expect(result.kept).toEqual([
+      expect.stringMatching(/sunita@demo.local.*deactivated/),
+      expect.stringMatching(/anil@demo.local.*deactivated/),
+    ]);
     expect(await snapshot(ctx)).toEqual(before);
     expect(await ctx.prisma.feeHead.findUnique({ where: { code: 'TUITION' } })).not.toBeNull();
     expect(await activeDemoManifest(ctx.prisma)).toBeNull();

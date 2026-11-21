@@ -21,12 +21,16 @@ model Employee {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user             User?               @relation("EmployeeUser", fields: [userId], references: [id], onDelete: Restrict)
+  user             User?                  @relation("EmployeeUser", fields: [userId], references: [id], onDelete: Restrict)
   documents        EmployeeDocument[]
-  classTeacherOf   Section[]           @relation("SectionClassTeacher")
+  classTeacherOf   Section[]              @relation("SectionClassTeacher")
   assignments      TeacherAssignment[]
   leaveRequests    LeaveRequest[]
   timetableEntries TimetableEntry[]
+  routesDriven     TransportRoute[]       @relation("RouteDriver")
+  routesAttended   TransportRoute[]       @relation("RouteAttendant")
+  meetings         ParentTeacherMeeting[]
+  payrollRecords   PayrollRecord[]
 
   @@index([status])
   @@map("employees")

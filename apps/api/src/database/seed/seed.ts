@@ -1,5 +1,8 @@
 import {
+  DEFAULT_CERTIFICATE_TEMPLATES,
   DEFAULT_ROLE_PERMISSIONS,
+  DEFAULT_SALARY_COMPONENTS,
+  idCardLayoutSchema,
   PAGE_CONTENT_SCHEMAS,
   PAGE_KEYS,
   PERMISSION_DEFINITIONS,
@@ -151,6 +154,7 @@ export async function seedDatabase(
 
   await seedClasses(prisma, log);
   await seedWebsitePages(prisma, log);
+  await seedOperationDefaults(prisma, log);
 
   return result;
 }
@@ -199,6 +203,46 @@ async function seedWebsitePages(prisma: PrismaClient, log: (m: string) => void) 
     created.push(key);
   }
   if (created.length) log(`Website pages created: ${created.join(', ')}`);
+}
+
+/**
+ * Phase 7 starter set-up (only when none exists yet): salary components, the TC / Bonafide /
+ * Character certificate templates and one student and one staff ID card design. All editable.
+ */
+async function seedOperationDefaults(prisma: PrismaClient, log: (m: string) => void) {
+  if ((await prisma.salaryComponent.count()) === 0) {
+    await prisma.salaryComponent.createMany({
+      data: DEFAULT_SALARY_COMPONENTS.map((c, sortOrder) => ({ ...c, sortOrder })),
+    });
+    log(`Salary components created: ${DEFAULT_SALARY_COMPONENTS.length.toString()}`);
+  }
+  if ((await prisma.idCardTemplate.count()) === 0) {
+    const layout = idCardLayoutSchema.parse({});
+    await prisma.idCardTemplate.createMany({
+      data: [
+        { name: 'Student ID card', audience: 'STUDENT', layout },
+        {
+          name: 'Staff ID card',
+          audience: 'STAFF',
+          layout: { ...layout, color: '#7a2e2e', showGuardianPhone: false },
+        },
+      ],
+    });
+    log('ID card templates created');
+  }
+  if ((await prisma.certificateTemplate.count()) === 0) {
+    const admin = await prisma.user.findFirst({
+      where: { roles: { some: { role: { code: ROLE_CODES.ADMIN } } } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!admin)
+      return log('Certificate templates skipped: they need an admin account as the author.');
+    await prisma.certificateTemplate.createMany({
+      data: DEFAULT_CERTIFICATE_TEMPLATES.map((t) => ({ ...t, updatedBy: admin.id })),
+    });
+    log('Certificate templates created: TC, Bonafide, Character');
+  }
 }
 
 async function createAccount(

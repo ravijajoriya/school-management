@@ -24,10 +24,11 @@ model Student {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  guardians  StudentGuardian[]
-  enrolments StudentEnrolment[]
-  documents  StudentDocument[]
-  enquiry    AdmissionEnquiry?
+  guardians    StudentGuardian[]
+  enrolments   StudentEnrolment[]
+  documents    StudentDocument[]
+  enquiry      AdmissionEnquiry?
+  certificates CertificateIssue[]
 
   @@index([lastName, firstName])
   @@map("students")
@@ -76,17 +77,20 @@ model StudentEnrolment {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  student           Student            @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  academicYear      AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-  class             Class              @relation(fields: [classId], references: [id], onDelete: Restrict)
+  student           Student                @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  academicYear      AcademicYear           @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  class             Class                  @relation(fields: [classId], references: [id], onDelete: Restrict)
   /// Composite FK: section, year and class must agree (class_id can never contradict the section).
-  section           Section            @relation(fields: [sectionId, academicYearId, classId], references: [id, academicYearId, classId], onDelete: Restrict)
-  previousEnrolment StudentEnrolment?  @relation("EnrolmentContinuation", fields: [previousEnrolmentId], references: [id], onDelete: Restrict)
-  nextEnrolment     StudentEnrolment?  @relation("EnrolmentContinuation")
+  section           Section                @relation(fields: [sectionId, academicYearId, classId], references: [id, academicYearId, classId], onDelete: Restrict)
+  previousEnrolment StudentEnrolment?      @relation("EnrolmentContinuation", fields: [previousEnrolmentId], references: [id], onDelete: Restrict)
+  nextEnrolment     StudentEnrolment?      @relation("EnrolmentContinuation")
   attendance        AttendanceRecord[]
   feeDues           StudentFeeDue[]
   payments          Payment[]
   markEntries       MarkEntry[]
+  transport         StudentTransport[]
+  meetings          ParentTeacherMeeting[]
+  certificates      CertificateIssue[]
 
   @@unique([studentId, academicYearId])
   @@unique([sectionId, rollNumber])

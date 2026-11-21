@@ -24,6 +24,7 @@ model AcademicYear {
   feeDues            StudentFeeDue[]
   examinations       Examination[]
   gradingScales      GradingScale[]
+  idCardBatches      IdCardBatch[]
 
   @@map("academic_years")
 }
