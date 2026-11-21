@@ -37,6 +37,7 @@ import {
   useSaveInventoryItem,
 } from '../operations-api';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { usePagination } from '@/lib/use-pagination';
 
 const CONDITION_TONE: Record<ItemCondition, 'green' | 'amber' | 'red' | 'gray'> = {
   GOOD: 'green',
@@ -53,13 +54,14 @@ export function InventoryPage() {
   const [categoryId, setCategoryId] = useState('');
   const [conditionStatus, setCondition] = useState<ItemCondition | ''>('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const debounced = useDebouncedValue(search);
   const items = useInventoryItems({
     categoryId: categoryId || undefined,
     conditionStatus: conditionStatus || undefined,
     search: debounced,
     page,
+    pageSize,
   });
   const remove = useDeleteInventoryItem();
   const [editing, setEditing] = useState<InventoryItemRow | 'new' | null>(null);
@@ -254,6 +256,8 @@ export function InventoryPage() {
               totalPages={items.data.totalPages}
               total={items.data.total}
               onChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
           </>
         )}

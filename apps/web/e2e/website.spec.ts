@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
+import { navTo } from './nav.ts';
 
 async function signInAsAdmin(page: Page) {
   await page.goto('/login');
@@ -27,7 +28,7 @@ test.describe('Public website & CMS', () => {
 
     await signInAsAdmin(page);
     await expect(page.getByText('New enquiries')).toBeVisible();
-    await page.getByRole('navigation').getByRole('link', { name: 'Enquiries' }).click();
+    await navTo(page, 'Enquiries');
     await page.getByRole('link', { name: reference }).click();
     await expect(page.getByRole('heading', { name: 'Aarav Sharma' })).toBeVisible();
 
@@ -42,7 +43,7 @@ test.describe('Public website & CMS', () => {
 
   test('page edits stay private until published', async ({ page, browser }) => {
     await signInAsAdmin(page);
-    await page.getByRole('navigation').getByRole('link', { name: 'Website Pages' }).click();
+    await navTo(page, 'Website Pages');
     await page.getByRole('link', { name: /Home page/ }).click();
 
     const heading = page.getByLabel('Highlighted words (gold)').first();
@@ -63,7 +64,7 @@ test.describe('Public website & CMS', () => {
 
   test('a published announcement appears on the home page', async ({ page }) => {
     await signInAsAdmin(page);
-    await page.getByRole('navigation').getByRole('link', { name: 'Announcements' }).click();
+    await navTo(page, 'Announcements');
     await page.getByRole('button', { name: 'New announcement' }).click();
     const dialog = page.getByRole('dialog', { name: 'New announcement' });
     await dialog.getByLabel('Title').fill('School closed on Makar Sankranti');
@@ -87,7 +88,7 @@ test.describe('Public website & CMS', () => {
     await expect(page.getByRole('status')).toContainText('Your message has been sent');
 
     await signInAsAdmin(page);
-    await page.getByRole('navigation').getByRole('link', { name: 'Contact Messages' }).click();
+    await navTo(page, 'Contact Messages');
     await expect(page.getByText('What are the school timings?')).toBeVisible();
     await page.getByRole('button', { name: 'Mark read' }).click();
     await expect(page.getByText('No messages')).toBeVisible();

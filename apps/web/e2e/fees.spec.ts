@@ -1,6 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
+import { navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -69,10 +70,9 @@ test.describe('Fees & receipts', () => {
   }) => {
     test.setTimeout(60_000);
     await signIn(page);
-    const nav = page.getByRole('navigation');
 
     // Fee head and a plan for Class 1, then bill the class.
-    await nav.getByRole('link', { name: 'Fee Heads' }).click();
+    await navTo(page, 'Fee Heads');
     await expect(page).toHaveURL(/\/admin\/fees\/heads$/);
     await page.getByRole('button', { name: 'New fee head' }).click();
     const headDialog = page.getByRole('dialog', { name: 'New fee head' });
@@ -81,7 +81,7 @@ test.describe('Fees & receipts', () => {
     await headDialog.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('cell', { name: 'Tuition fee' })).toBeVisible();
 
-    await nav.getByRole('link', { name: 'Fee Plans' }).click();
+    await navTo(page, 'Fee Plans');
     await expect(page).toHaveURL(/\/admin\/fees\/plans$/);
     await page.getByRole('button', { name: 'New fee plan' }).click();
     const planDialog = page.getByRole('dialog', { name: 'New fee plan' });
@@ -97,7 +97,7 @@ test.describe('Fees & receipts', () => {
     await expect(page.getByText('1 dues created for Class 1.')).toBeVisible();
 
     // Collect: the overdue instalment is pre-selected.
-    await nav.getByRole('link', { name: 'Collect Fees' }).click();
+    await navTo(page, 'Collect Fees');
     await expect(page).toHaveURL(/\/admin\/fees\/collect$/);
     await page.getByLabel('Find student').fill('Aarav');
     await page.getByRole('button', { name: /Aarav Sharma/ }).click();

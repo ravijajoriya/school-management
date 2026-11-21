@@ -46,6 +46,7 @@ import {
   useLinkEmployeeUser,
   useSaveEmployee,
 } from '../people-api';
+import { usePagination } from '@/lib/use-pagination';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', LEFT: 'red' } as const;
 
@@ -53,12 +54,13 @@ export function EmployeesPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<EmployeeStatus | ''>('ACTIVE');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const [adding, setAdding] = useState(false);
   const list = useEmployees({
     search: useDebouncedValue(search),
     status: status || undefined,
     page,
+    pageSize,
   });
   return (
     <div>
@@ -155,6 +157,8 @@ export function EmployeesPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

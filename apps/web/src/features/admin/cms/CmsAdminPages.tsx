@@ -47,6 +47,7 @@ import {
   useUpdateMedia,
   useUploadMedia,
 } from '../cms-api';
+import { usePagination } from '@/lib/use-pagination';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -115,9 +116,9 @@ function useServerErrors() {
 export function AnnouncementsAdminPage() {
   const [status, setStatus] = useState<AnnouncementStatus | ''>('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const debounced = useDebouncedValue(search);
-  const list = useAnnouncements({ status: status || undefined, search: debounced, page });
+  const list = useAnnouncements({ status: status || undefined, search: debounced, page, pageSize });
   const remove = useDeleteAnnouncement();
   const [editing, setEditing] = useState<AnnouncementItem | 'new' | null>(null);
 
@@ -195,6 +196,8 @@ export function AnnouncementsAdminPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>
@@ -333,8 +336,8 @@ function AnnouncementEditor({
 
 export function EventsAdminPage() {
   const [when, setWhen] = useState<'upcoming' | 'past' | ''>('upcoming');
-  const [page, setPage] = useState(1);
-  const list = useEvents({ when: when || undefined, page });
+  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const list = useEvents({ when: when || undefined, page, pageSize });
   const remove = useDeleteEvent();
   const [editing, setEditing] = useState<EventItem | 'new' | null>(null);
   return (
@@ -388,6 +391,8 @@ export function EventsAdminPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>
@@ -512,8 +517,8 @@ function EventEditor({ item, onClose }: { item: EventItem | null; onClose: () =>
 // --- Internal notices ------------------------------------------------------------------------------
 
 export function NoticesAdminPage() {
-  const [page, setPage] = useState(1);
-  const list = useNotices(page);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const list = useNotices(page, pageSize);
   const remove = useDeleteNotice();
   const [editing, setEditing] = useState<NoticeItem | 'new' | null>(null);
   return (
@@ -558,6 +563,8 @@ export function NoticesAdminPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>
@@ -672,8 +679,12 @@ function NoticeEditor({ item, onClose }: { item: NoticeItem | null; onClose: () 
 export function MediaLibraryPage() {
   const [category, setCategory] = useState<MediaCategory | ''>('');
   const [uploadCategory, setUploadCategory] = useState<MediaCategory>('CAMPUS');
-  const [page, setPage] = useState(1);
-  const media = useMedia({ category: category || undefined, page, pageSize: 24 });
+  const { page, pageSize, setPage, setPageSize, pageSizeOptions } = usePagination({
+    key: 'media',
+    defaultSize: 24,
+    options: [12, 24, 48, 96],
+  });
+  const media = useMedia({ category: category || undefined, page, pageSize });
   const upload = useUploadMedia();
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -807,6 +818,9 @@ export function MediaLibraryPage() {
             totalPages={media.data.totalPages}
             total={media.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={pageSizeOptions}
           />
         )}
       </Card>

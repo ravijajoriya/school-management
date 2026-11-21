@@ -1,6 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
+import { navTo } from './nav.ts';
 
 async function signIn(page: Page, identifier: string, password: string, landing: RegExp) {
   await page.goto('/login');
@@ -60,10 +61,9 @@ test.describe('Academics, staff & students', () => {
     browser,
   }) => {
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    const nav = page.getByRole('navigation');
 
     // 1. Academic year, made current.
-    await nav.getByRole('link', { name: 'Academic Years' }).click();
+    await navTo(page, 'Academic Years');
     await page.getByRole('button', { name: 'New academic year' }).click();
     const yearDialog = page.getByRole('dialog', { name: 'New academic year' });
     const y = currentSessionStart();
@@ -73,7 +73,7 @@ test.describe('Academics, staff & students', () => {
     await expect(page.getByText('Current', { exact: true })).toBeVisible();
 
     // 2. Staff record, linked to the teacher's existing login.
-    await nav.getByRole('link', { name: 'Staff', exact: true }).click();
+    await navTo(page, 'Staff');
     await page.getByRole('button', { name: 'Add staff member' }).click();
     const staffDialog = page.getByRole('dialog', { name: 'Add staff member' });
     await staffDialog.getByLabel('First name').fill('Sunita');
@@ -88,7 +88,7 @@ test.describe('Academics, staff & students', () => {
     await expect(page.getByText(`Signs in with ${ACCOUNTS.teacher.email}`)).toBeVisible();
 
     // 3. Section with Sunita as class teacher.
-    await nav.getByRole('link', { name: 'Classes & Sections' }).click();
+    await navTo(page, 'Classes & Sections');
     await page.getByRole('button', { name: 'Add section to Class 1', exact: true }).click();
     const sectionDialog = page.getByRole('dialog', { name: 'New section in Class 1' });
     await expect(sectionDialog.getByLabel('Section name')).toHaveValue('A');
@@ -98,7 +98,7 @@ test.describe('Academics, staff & students', () => {
     await expect(page.getByRole('row', { name: /Sunita Verma/ })).toContainText('0 / 30');
 
     // 4. Register a student straight into Class 1 – A.
-    await nav.getByRole('link', { name: 'Students', exact: true }).click();
+    await navTo(page, 'Students');
     await page.getByRole('button', { name: 'Register student' }).click();
     await page.getByLabel('First name').fill('Aarav');
     await page.getByLabel('Last name').fill('Sharma');
@@ -119,7 +119,7 @@ test.describe('Academics, staff & students', () => {
     // Dashboard: "Today's attendance" and "Your classes" both list the section.
     await expect(teacher.getByRole('link', { name: /Class 1 – A.*Class teacher/ })).toBeVisible();
     await expect(teacher.getByRole('link', { name: /Class 1 – A.*Mark today/ })).toBeVisible();
-    await teacher.getByRole('navigation').getByRole('link', { name: 'My classes' }).click();
+    await navTo(teacher, 'My classes');
     await expect(teacher).toHaveURL(/\/teacher\/classes$/);
     await teacher.getByRole('link', { name: /Class 1 – A/ }).click();
     await expect(teacher.getByRole('row', { name: /Aarav Sharma/ })).toContainText('Ramesh Sharma');
@@ -140,7 +140,7 @@ test.describe('Academics, staff & students', () => {
     const reference = (await page.getByRole('status').locator('strong').textContent())!.trim();
 
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    await page.getByRole('navigation').getByRole('link', { name: 'Enquiries' }).click();
+    await navTo(page, 'Enquiries');
     await page.getByRole('link', { name: reference }).click();
     await page.getByRole('button', { name: 'Convert to student' }).click();
 

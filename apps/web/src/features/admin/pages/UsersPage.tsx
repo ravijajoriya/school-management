@@ -20,13 +20,14 @@ import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useRoles, useUsers } from '../api';
 import { TemporaryPasswordModal } from '../components/TemporaryPasswordModal';
 import { UserFormModal, type UserFormResult } from '../components/UserFormModal';
+import { usePagination } from '@/lib/use-pagination';
 
 export function UsersPage() {
   const { can } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<UserStatus | ''>('');
   const [roleId, setRoleId] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const debouncedSearch = useDebouncedValue(search);
 
   const users = useUsers({
@@ -34,7 +35,7 @@ export function UsersPage() {
     status: status || undefined,
     roleId,
     page,
-    pageSize: 20,
+    pageSize,
   });
   const roles = useRoles(can(PERMISSIONS.ROLES_READ));
 
@@ -191,6 +192,8 @@ export function UsersPage() {
             totalPages={users.data.totalPages}
             total={users.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

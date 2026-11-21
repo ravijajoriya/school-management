@@ -1,6 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
+import { navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -91,7 +92,7 @@ test.describe('School operations', () => {
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
 
     // Transport: a van, a route with a stop, and a student on it.
-    await page.getByRole('link', { name: 'Transport', exact: true }).click();
+    await navTo(page, 'Transport');
     await expect(page).toHaveURL(/\/admin\/transport$/);
     await page
       .getByRole('navigation', { name: 'Transport' })
@@ -140,7 +141,7 @@ test.describe('School operations', () => {
     await expect(page.getByRole('cell', { name: '9829012345' })).toBeVisible();
 
     // Complaints: log one, then resolve it with notes.
-    await page.getByRole('link', { name: 'Complaints', exact: true }).click();
+    await navTo(page, 'Complaints');
     await expect(page).toHaveURL(/\/admin\/complaints$/);
     await page.getByRole('button', { name: 'Log complaint' }).click();
     await page.getByLabel('Category').first().selectOption('TRANSPORT');
@@ -158,7 +159,7 @@ test.describe('School operations', () => {
     await expect(page.getByText(/status resolved/)).toBeVisible();
 
     // Certificates: a bonafide certificate with a number and frozen wording.
-    await page.getByRole('link', { name: 'Certificates', exact: true }).click();
+    await navTo(page, 'Certificates');
     await expect(page).toHaveURL(/\/admin\/certificates$/);
     await page.getByLabel(/^Certificate/).selectOption({ label: 'Bonafide Certificate' });
     await pickStudent(page, /^Student/, 'Bhavya Sharma');
@@ -175,7 +176,7 @@ test.describe('School operations', () => {
   }) => {
     test.setTimeout(60_000);
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    await page.getByRole('link', { name: 'Payroll', exact: true }).click();
+    await navTo(page, 'Payroll');
     await expect(page).toHaveURL(/\/admin\/payroll$/);
     await page.getByRole('button', { name: 'Prepare payroll' }).click();
     await expect(page).toHaveURL(/\/admin\/payroll\/[0-9a-f-]+$/);
@@ -199,13 +200,13 @@ test.describe('School operations', () => {
 
     const teacher = await browser.newPage();
     await signIn(teacher, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
-    await teacher.getByRole('link', { name: 'My payslips' }).click();
+    await navTo(teacher, 'My payslips');
     await expect(teacher).toHaveURL(/\/teacher\/payslips$/);
     await teacher.getByRole('link', { name: 'View' }).click();
     await expect(teacher.getByText(/Net pay:\s*₹32,700$/)).toBeVisible();
     await expect(teacher.getByText('Rupees Thirty Two Thousand Seven Hundred Only')).toBeVisible();
 
-    await teacher.getByRole('link', { name: 'Parent meetings' }).click();
+    await navTo(teacher, 'Parent meetings');
     await expect(teacher).toHaveURL(/\/teacher\/meetings$/);
     await teacher.getByRole('button', { name: 'Schedule meeting' }).click();
     await teacher.getByLabel(/^Student/).selectOption({ label: 'Aarav Sharma' });

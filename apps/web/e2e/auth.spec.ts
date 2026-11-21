@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
+import { navTo } from './nav.ts';
 
 async function signIn(page: Page, identifier: string, password: string) {
   await page.goto('/login');
@@ -47,7 +48,7 @@ test.describe('Staff authentication', () => {
   test('admin adds a teacher who signs in with the temporary password', async ({ page }) => {
     resetDatabase();
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password);
-    await page.getByRole('navigation').getByRole('link', { name: 'Users' }).click();
+    await navTo(page, 'Users');
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Add user' }).click();
@@ -104,7 +105,7 @@ test.describe('Staff authentication', () => {
     // …while the admin deactivates them in another.
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password);
     await expect(page).toHaveURL(/\/admin$/);
-    await page.getByRole('navigation').getByRole('link', { name: 'Users' }).click();
+    await navTo(page, 'Users');
     await page
       .getByRole('row', { name: /E2E Teacher/ })
       .getByRole('button', { name: 'Edit' })

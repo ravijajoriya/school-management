@@ -39,6 +39,7 @@ import {
   useUpdateComplaint,
 } from '../operations-api';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { usePagination } from '@/lib/use-pagination';
 
 const STATUS_TONE: Record<ComplaintStatus, 'amber' | 'navy' | 'green' | 'gray'> = {
   OPEN: 'amber',
@@ -53,13 +54,14 @@ export function ComplaintsPage() {
   const [status, setStatus] = useState<ComplaintStatus | ''>('');
   const [category, setCategory] = useState<ComplaintCategory | ''>('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const debounced = useDebouncedValue(search);
   const list = useComplaints({
     status: status || undefined,
     category: category || undefined,
     search: debounced,
     page,
+    pageSize,
   });
   const summary = useComplaintSummary();
   const [creating, setCreating] = useState(false);
@@ -189,6 +191,8 @@ export function ComplaintsPage() {
               totalPages={list.data.totalPages}
               total={list.data.total}
               onChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
           </>
         )}

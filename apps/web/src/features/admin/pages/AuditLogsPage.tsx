@@ -15,6 +15,7 @@ import { errorMessages } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/format';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useAuditLogs } from '../api';
+import { usePagination } from '@/lib/use-pagination';
 
 const ACTION_LABELS: Record<string, string> = {
   'auth.login_succeeded': 'Signed in',
@@ -43,11 +44,11 @@ export function AuditLogsPage() {
   const [action, setAction] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const [expanded, setExpanded] = useState<string | null>(null);
   const debouncedAction = useDebouncedValue(action);
 
-  const logs = useAuditLogs({ action: debouncedAction, from, to, page, pageSize: 25 });
+  const logs = useAuditLogs({ action: debouncedAction, from, to, page, pageSize });
 
   return (
     <div>
@@ -174,6 +175,8 @@ export function AuditLogsPage() {
             totalPages={logs.data.totalPages}
             total={logs.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

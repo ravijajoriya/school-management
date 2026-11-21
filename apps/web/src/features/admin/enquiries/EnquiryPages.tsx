@@ -47,6 +47,7 @@ import {
   useUpdateEnquiry,
 } from '../cms-api';
 import { ConvertEnquiryModal } from '../students/ConvertEnquiryModal';
+import { usePagination } from '@/lib/use-pagination';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -69,7 +70,7 @@ export function EnquiriesPage() {
   const [status, setStatus] = useState<EnquiryStatus | ''>('');
   const [classSoughtId, setClassSoughtId] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const [adding, setAdding] = useState(false);
   const debounced = useDebouncedValue(search);
   const list = useEnquiries({
@@ -78,6 +79,7 @@ export function EnquiriesPage() {
     classSoughtId,
     assignedTo: (assignedTo || undefined) as 'me' | 'unassigned' | undefined,
     page,
+    pageSize,
   });
   const resetPage =
     <T,>(fn: (v: T) => void) =>
@@ -216,6 +218,8 @@ export function EnquiriesPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>
@@ -634,8 +638,8 @@ function EnquiryDetailView({ enquiry }: { enquiry: EnquiryDetail }) {
 
 export function ContactMessagesPage() {
   const [status, setStatus] = useState<ContactMessageStatus | ''>('NEW');
-  const [page, setPage] = useState(1);
-  const list = useContactMessages({ status: status || undefined, page });
+  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const list = useContactMessages({ status: status || undefined, page, pageSize });
   const update = useUpdateContactMessage();
   return (
     <div>
@@ -720,6 +724,8 @@ export function ContactMessagesPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

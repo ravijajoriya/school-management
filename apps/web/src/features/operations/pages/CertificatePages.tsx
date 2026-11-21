@@ -42,6 +42,7 @@ import {
   useSaveCertificateTemplate,
   useSaveIdCardTemplate,
 } from '../operations-api';
+import { usePagination } from '@/lib/use-pagination';
 
 // --- Certificates ----------------------------------------------------------------------------
 
@@ -58,8 +59,8 @@ export function CertificatesPage() {
     purpose: '',
     issuedOn: todayIso(),
   });
-  const [page, setPage] = useState(1);
-  const issued = useCertificates({ page });
+  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const issued = useCertificates({ page, pageSize });
   const template = templates.data?.find((t) => t.id === form.templateId);
   const uses = (p: string) => template?.templateHtml.includes(`{{${p}}}`) ?? false;
   const submit = async () => {
@@ -210,6 +211,8 @@ export function CertificatesPage() {
               totalPages={issued.data.totalPages}
               total={issued.data.total}
               onChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
           </>
         )}

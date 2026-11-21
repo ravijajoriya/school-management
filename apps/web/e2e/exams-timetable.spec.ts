@@ -1,6 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
+import { navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -118,7 +119,7 @@ test.describe('Exams, results & timetable', () => {
   }) => {
     test.setTimeout(60_000);
     await signIn(page, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
-    await page.getByRole('navigation').getByRole('link', { name: 'Marks entry' }).click();
+    await navTo(page, 'Marks entry');
     await expect(page).toHaveURL(/\/teacher\/marks$/);
     await page.getByRole('link', { name: /Half-yearly Mathematics/ }).click();
     await page.getByLabel('Marks for Aarav Sharma', { exact: true }).fill('92');
@@ -133,7 +134,7 @@ test.describe('Exams, results & timetable', () => {
     const office = await officeContext.newPage();
     office.on('dialog', (d) => void d.accept());
     await signIn(office, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    await office.getByRole('navigation').getByRole('link', { name: 'Examinations' }).click();
+    await navTo(office, 'Examinations');
     await expect(office).toHaveURL(/\/admin\/exams$/);
     await office.getByRole('link', { name: /Half-yearly/ }).click();
     await office
@@ -164,7 +165,7 @@ test.describe('Exams, results & timetable', () => {
   }) => {
     test.setTimeout(60_000);
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    await page.getByRole('navigation').getByRole('link', { name: 'Timetables' }).click();
+    await navTo(page, 'Timetables');
     await expect(page).toHaveURL(/\/admin\/timetables$/);
     await page.getByRole('button', { name: 'New timetable' }).click();
     const dialog = page.getByRole('dialog', { name: 'New timetable' });
@@ -183,7 +184,7 @@ test.describe('Exams, results & timetable', () => {
     const teacherContext = await browser.newContext();
     const teacher = await teacherContext.newPage();
     await signIn(teacher, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
-    await teacher.getByRole('navigation').getByRole('link', { name: 'My timetable' }).click();
+    await navTo(teacher, 'My timetable');
     await expect(teacher.getByRole('cell', { name: /Mathematics\s*Class 10 – A/ })).toBeVisible();
     await teacherContext.close();
   });

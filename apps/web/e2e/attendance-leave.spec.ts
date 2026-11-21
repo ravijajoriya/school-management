@@ -1,6 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
+import { navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -96,7 +97,7 @@ test.describe('Attendance & leave', () => {
     await expect(page.getByRole('link', { name: /Class 1 – A/ }).first()).toContainText(
       'Mark today',
     );
-    await page.getByRole('navigation').getByRole('link', { name: 'Attendance' }).click();
+    await navTo(page, 'Attendance');
     await expect(page).toHaveURL(/\/teacher\/attendance$/);
     await page.getByRole('link', { name: /Class 1 – A/ }).click();
     const bhavya = page.getByRole('row', { name: 'Bhavya Sharma' });
@@ -118,14 +119,14 @@ test.describe('Attendance & leave', () => {
     office.on('dialog', (d) => void d.accept());
     await signIn(office, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
     await expect(office.getByRole('link', { name: /Attendance today/ })).toContainText('50%');
-    await office.getByRole('navigation').getByRole('link', { name: 'Daily Report' }).click();
+    await navTo(office, 'Daily Report');
     await expect(office).toHaveURL(/\/admin\/attendance\/daily$/);
     const row = office.getByRole('row', { name: /Class 1 – A/ });
     await expect(row).toContainText('Sunita Verma');
     await expect(row).toContainText('2/2');
 
     // Office corrects yesterday (not marked by the teacher) — a reason is required.
-    await office.getByRole('navigation').getByRole('link', { name: 'Mark & Correct' }).click();
+    await navTo(office, 'Mark & Correct');
     await expect(office).toHaveURL(/\/admin\/attendance$/);
     await office.getByLabel('Class & section').selectOption({ label: 'Class 1 – A' });
     await office.getByLabel('Date', { exact: true }).fill(addDays(today(), -1));
@@ -141,7 +142,7 @@ test.describe('Attendance & leave', () => {
     );
 
     // The class register shows both days.
-    await office.getByRole('navigation').getByRole('link', { name: 'Class Register' }).click();
+    await navTo(office, 'Class Register');
     await expect(office).toHaveURL(/\/admin\/attendance\/register$/);
     await office.getByLabel('Class & section').selectOption({ label: 'Class 1 – A' });
     await office.getByLabel('Month').fill(today().slice(0, 7));
@@ -151,7 +152,7 @@ test.describe('Attendance & leave', () => {
 
   test('a teacher applies for leave and the office approves it', async ({ page, browser }) => {
     await signIn(page, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
-    await page.getByRole('navigation').getByRole('link', { name: 'My leave' }).click();
+    await navTo(page, 'My leave');
     await page.getByLabel('Type of leave').selectOption({ label: 'Sick / medical leave' });
     await page.getByLabel('From').fill(addDays(today(), 2));
     await page.getByLabel('To').fill(addDays(today(), 3));
@@ -165,7 +166,7 @@ test.describe('Attendance & leave', () => {
     const office = await officeContext.newPage();
     await signIn(office, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
     await expect(office.getByRole('link', { name: /Leave requests to review/ })).toContainText('1');
-    await office.getByRole('navigation').getByRole('link', { name: 'Staff Leave' }).click();
+    await navTo(office, 'Staff Leave');
     await office
       .getByRole('row', { name: /Sunita Verma/ })
       .getByRole('button', { name: 'Approve' })

@@ -1,6 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
+import { navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -64,7 +65,7 @@ test.describe('Reports, exports & data import', () => {
     test.setTimeout(60_000);
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
 
-    await page.getByRole('link', { name: 'Import Data' }).click();
+    await navTo(page, 'Import Data');
     await expect(page).toHaveURL(/\/admin\/imports$/);
     const template = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download template' }).click();
@@ -92,13 +93,13 @@ test.describe('Reports, exports & data import', () => {
     await expect(page.getByRole('cell', { name: '2 of 2' })).toBeVisible();
 
     // The dashboard counts them; the reports page shows class strength and downloads Excel.
-    await page.getByRole('link', { name: 'Dashboard' }).click();
+    await navTo(page, 'Dashboard');
     await expect(page).toHaveURL(/\/admin$/);
     const students = page.getByRole('region', { name: 'Students & admissions' });
     await expect(students.getByText(/^Students \(/)).toBeVisible();
     await expect(students).toContainText('2');
 
-    await page.getByRole('link', { name: 'Reports & Exports' }).click();
+    await navTo(page, 'Reports & Exports');
     await expect(page).toHaveURL(/\/admin\/reports$/);
     await expect(page.getByRole('row', { name: /Class 5 – A .* 1 1 0 2/ })).toBeVisible();
     const strengthCard = page
@@ -110,7 +111,7 @@ test.describe('Reports, exports & data import', () => {
     expect((await download).suggestedFilename()).toMatch(/^class-strength-.*\.xlsx$/);
 
     // Students list: export what is on screen as CSV.
-    await page.getByRole('link', { name: 'Students', exact: true }).click();
+    await navTo(page, 'Students');
     await expect(page).toHaveURL(/\/admin\/students$/);
     await expect(page.getByRole('cell', { name: /Aarav Sharma/ })).toBeVisible();
     const csv = page.waitForEvent('download');

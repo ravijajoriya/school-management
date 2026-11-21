@@ -56,6 +56,7 @@ import {
 } from '../people-api';
 import { AddressFields, EnrolmentFields, StudentFields } from './StudentFormParts';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { usePagination } from '@/lib/use-pagination';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', WITHDRAWN: 'red' } as const;
 const ENROLMENT_TONE = {
@@ -78,7 +79,7 @@ export function StudentsPage() {
   const [sectionId, setSectionId] = useState('');
   const [status, setStatus] = useState<StudentStatus | ''>('ACTIVE');
   const [notEnrolled, setNotEnrolled] = useState(false);
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const list = useStudents({
     search: useDebouncedValue(search),
     academicYearId: yearId || undefined,
@@ -87,6 +88,7 @@ export function StudentsPage() {
     status: status || undefined,
     notEnrolled: notEnrolled || undefined,
     page,
+    pageSize,
   });
   const reset =
     <T,>(fn: (v: T) => void) =>
@@ -240,6 +242,8 @@ export function StudentsPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

@@ -32,6 +32,46 @@ describe('PortalLayout', () => {
     expect(nav).not.toHaveTextContent('Audit Logs');
   });
 
+  it('collapses sections, opens the current page section and shows one section at a time', async () => {
+    const grouped: PortalNavItem[] = [
+      { to: '/admin', label: 'Dashboard', end: true },
+      { to: '/admin/students', label: 'Students', section: 'People' },
+      { to: '/admin/staff', label: 'Staff', section: 'People' },
+      { to: '/admin/fees/collect', label: 'Collect Fees', section: 'Fees' },
+      { to: '/admin/fees/heads', label: 'Fee Heads', section: 'Fees' },
+    ];
+    renderRoutes(
+      [
+        {
+          path: '/admin',
+          element: <PortalLayout title="Admin Portal" nav={grouped} />,
+          children: [
+            { index: true, element: page('dashboard') },
+            { path: 'students', element: page('students page') },
+          ],
+        },
+      ],
+      { auth: makeAuth({ user: makeUser() }), initialPath: '/admin/students' },
+    );
+    const user = userEvent.setup();
+    const people = screen.getByRole('button', { name: 'People' });
+    const fees = screen.getByRole('button', { name: 'Fees' });
+    // The current page's section starts open; the others are collapsed.
+    expect(people).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Students' })).toHaveAttribute('aria-current', 'page');
+    expect(fees).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Collect Fees' })).not.toBeInTheDocument();
+    // Opening Fees closes People.
+    await user.click(fees);
+    expect(screen.getByRole('link', { name: 'Collect Fees' })).toBeVisible();
+    expect(people).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Students' })).not.toBeInTheDocument();
+    // Clicking an open section collapses it; Dashboard is always shown.
+    await user.click(fees);
+    expect(screen.queryByRole('link', { name: 'Fee Heads' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+  });
+
   it('shows the signed-in user and signs out from the user menu', async () => {
     const auth = makeAuth({ user: makeUser({ fullName: 'Asha Verma', roles: ['TEACHER'] }) });
     renderRoutes(routes, { auth, initialPath: '/admin' });

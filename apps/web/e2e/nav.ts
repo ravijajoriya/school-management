@@ -1,0 +1,21 @@
+import type { Page } from '@playwright/test';
+
+const exactText = (s: string) => new RegExp(`^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+
+/**
+ * Clicks a link in the portal sidebar. Sidebar sections (People, Fees, …) are collapsible, so the
+ * link's section is opened first when it is collapsed.
+ */
+export async function navTo(page: Page, label: string) {
+  const nav = page.getByRole('navigation', { name: /Portal navigation$/ });
+  const link = nav.getByRole('link', { name: label, exact: true });
+  if (!(await link.isVisible())) {
+    await nav
+      .locator('[data-nav-group]')
+      .filter({ has: page.locator('a', { hasText: exactText(label) }) })
+      .getByRole('button')
+      .first()
+      .click();
+  }
+  await link.click();
+}

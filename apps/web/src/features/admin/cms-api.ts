@@ -204,11 +204,11 @@ export function useDeleteMedia() {
 
 // --- Notices ----------------------------------------------------------------------------------
 
-export function useNotices(page: number) {
+export function useNotices(page: number, pageSize = 20) {
   return useQuery({
-    queryKey: ['notices', page],
+    queryKey: ['notices', page, pageSize],
     queryFn: async () =>
-      (await apiClient.get<Paginated<NoticeItem>>('/notices', { params: { page } })).data,
+      (await apiClient.get<Paginated<NoticeItem>>('/notices', { params: { page, pageSize } })).data,
     placeholderData: keepPreviousData,
   });
 }

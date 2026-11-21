@@ -400,7 +400,7 @@ export function useSaveCertificateTemplate() {
   });
 }
 
-export const useCertificates = (q: { studentId?: string; page?: number }) =>
+export const useCertificates = (q: { studentId?: string; page?: number; pageSize?: number }) =>
   useQuery({
     queryKey: ['certificates', 'list', q],
     queryFn: async () =>

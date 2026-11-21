@@ -340,17 +340,56 @@ export function Pagination({
   totalPages,
   total,
   onChange,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = [10, 20, 50, 100],
 }: {
   page: number;
   totalPages: number;
   total: number;
   onChange: (page: number) => void;
+  /** Rows per page. With `onPageSizeChange`, a "Rows per page" selector is shown. */
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
+  pageSizeOptions?: readonly number[];
 }) {
+  const sizeId = useId();
+  const size = pageSize ?? (totalPages > 0 ? Math.ceil(total / totalPages) : total);
+  const from = total === 0 ? 0 : (page - 1) * size + 1;
+  const to = Math.min(page * size, total);
   return (
-    <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-ink-muted">
-      <span>
-        {total} record{total === 1 ? '' : 's'}
-      </span>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 px-4 py-3 text-sm text-ink-muted">
+      <div className="flex flex-wrap items-center gap-4">
+        <span aria-live="polite">
+          {total === 0 ? (
+            'No records'
+          ) : (
+            <>
+              Showing <strong className="font-semibold text-ink">{from}</strong>–
+              <strong className="font-semibold text-ink">{to}</strong> of{' '}
+              <strong className="font-semibold text-ink">{total}</strong> record
+              {total === 1 ? '' : 's'}
+            </>
+          )}
+        </span>
+        {onPageSizeChange && pageSize !== undefined && (
+          <span className="flex items-center gap-2">
+            <label htmlFor={sizeId}>Rows per page</label>
+            <select
+              id={sizeId}
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40"
+            >
+              {pageSizeOptions.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <Button
           size="sm"
@@ -361,7 +400,7 @@ export function Pagination({
           Previous
         </Button>
         <span>
-          Page {page} of {totalPages}
+          Page {Math.min(page, Math.max(totalPages, 1))} of {Math.max(totalPages, 1)}
         </span>
         <Button
           size="sm"

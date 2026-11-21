@@ -40,6 +40,7 @@ import {
   useMyLeave,
   useReviewLeave,
 } from './leave-api';
+import { usePagination } from '@/lib/use-pagination';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -210,8 +211,8 @@ export function LeaveRequestsPage() {
   const { can } = useAuth();
   const canReview = can(PERMISSIONS.LEAVE_APPROVE);
   const [status, setStatus] = useState<LeaveStatus | ''>('PENDING');
-  const [page, setPage] = useState(1);
-  const list = useLeaveRequests({ status: status || undefined, page });
+  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const list = useLeaveRequests({ status: status || undefined, page, pageSize });
   const summary = useLeaveSummary();
   const [reviewing, setReviewing] = useState<{
     item: LeaveRequestItem;
@@ -333,6 +334,8 @@ export function LeaveRequestsPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

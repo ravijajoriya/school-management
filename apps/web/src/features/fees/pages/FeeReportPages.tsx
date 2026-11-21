@@ -45,6 +45,7 @@ import {
   usePayments,
 } from '../fees-api';
 import { CancelPaymentModal } from './FeeLedgerPages';
+import { usePagination } from '@/lib/use-pagination';
 
 const money = (n: number) => formatRupees(n);
 const firstOfMonth = () => `${todayIso().slice(0, 7)}-01`;
@@ -59,7 +60,7 @@ export function PaymentsPage() {
   const [paymentMode, setMode] = useState<PaymentMode | ''>('');
   const [status, setStatus] = useState<PaymentStatus | ''>('');
   const [chequeStatus, setCheque] = useState<ChequeStatus | ''>('');
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, setPageSize } = usePagination();
   const list = usePayments({
     search: useDebouncedValue(search),
     from,
@@ -68,6 +69,7 @@ export function PaymentsPage() {
     status: status || undefined,
     chequeStatus: chequeStatus || undefined,
     page,
+    pageSize,
   });
   const actions = usePaymentActions();
   const [cancelling, setCancelling] = useState<PaymentListItem | null>(null);
@@ -303,6 +305,8 @@ export function PaymentsPage() {
             totalPages={list.data.totalPages}
             total={list.data.total}
             onChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
           />
         )}
       </Card>

@@ -30,6 +30,7 @@ import { formatDateTime, fromLocalInput } from '@/lib/format';
 import { StudentFinder, Td, Th } from '../components/OpsParts';
 import { tbodyClass, theadClass, useFormErrors } from '../ops-utils';
 import { useCreateMeeting, useMeetings, useUpdateMeeting } from '../operations-api';
+import { usePagination } from '@/lib/use-pagination';
 
 const TONE: Record<MeetingStatus, 'navy' | 'green' | 'gray'> = {
   SCHEDULED: 'navy',
@@ -45,8 +46,8 @@ export function MeetingsPage({ teacherMode = false }: { teacherMode?: boolean })
   const { can } = useAuth();
   const canCreate = teacherMode ? can(PERMISSIONS.MEETINGS_OWN) : can(PERMISSIONS.MEETINGS_MANAGE);
   const [status, setStatus] = useState<MeetingStatus | ''>('SCHEDULED');
-  const [page, setPage] = useState(1);
-  const list = useMeetings({ status: status || undefined, page });
+  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const list = useMeetings({ status: status || undefined, page, pageSize });
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState<MeetingItem | null>(null);
   return (
@@ -145,6 +146,8 @@ export function MeetingsPage({ teacherMode = false }: { teacherMode?: boolean })
               totalPages={list.data.totalPages}
               total={list.data.total}
               onChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
           </>
         )}
