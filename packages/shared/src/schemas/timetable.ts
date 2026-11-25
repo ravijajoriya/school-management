@@ -145,6 +145,7 @@ export interface TimetableClash {
 export interface TeacherTimetable {
   teacher: { id: string; fullName: string };
   entries: {
+    sectionId: string;
     dayOfWeek: number;
     periodNumber: number;
     startTime: string;

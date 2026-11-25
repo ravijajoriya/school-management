@@ -1,6 +1,7 @@
 import { PERMISSIONS, type PermissionCode } from '@school/shared';
 import {
   Award,
+  CalendarHeart,
   BellRing,
   BookOpen,
   BookOpenCheck,
@@ -237,6 +238,13 @@ const ADMIN_NAV: PortalNavItem[] = [
     to: '/admin/teacher-assignments',
     label: 'Teacher Assignments',
     icon: UserCheck,
+    permissions: [PERMISSIONS.ACADEMICS_READ],
+    section: 'Academics',
+  },
+  {
+    to: '/admin/holidays',
+    label: 'Holidays',
+    icon: CalendarHeart,
     permissions: [PERMISSIONS.ACADEMICS_READ],
     section: 'Academics',
   },
@@ -543,6 +551,9 @@ export const adminRoutes: RouteObject = {
         })),
         guarded('teacher-assignments', PERMISSIONS.ACADEMICS_READ, async () => ({
           Component: (await academics()).TeacherAssignmentsPage,
+        })),
+        guarded('holidays', PERMISSIONS.ACADEMICS_READ, async () => ({
+          Component: (await import('@/features/holidays/HolidaysPage')).HolidaysPage,
         })),
         guarded('website', PERMISSIONS.WEBSITE_MANAGE, async () => ({
           Component: (await website()).WebsitePagesPage,

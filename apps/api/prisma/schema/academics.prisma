@@ -25,6 +25,7 @@ model AcademicYear {
   examinations       Examination[]
   gradingScales      GradingScale[]
   idCardBatches      IdCardBatch[]
+  holidays           Holiday[]
 
   @@map("academic_years")
 }
@@ -121,4 +122,23 @@ model TeacherAssignment {
   @@index([academicYearId, employeeId])
   @@index([classSubjectId])
   @@map("teacher_assignments")
+}
+
+/// School holidays (a single day or a range) within an academic year. Attendance can't be marked
+/// on them and teacher timetables show them faded. SQL: CHECK end_date >= start_date; no
+/// overlapping holidays in the same year (exclusion constraint).
+model Holiday {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  name           String   @db.VarChar(120)
+  startDate      DateTime @map("start_date") @db.Date
+  endDate        DateTime @map("end_date") @db.Date
+  createdBy      String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  creator      User         @relation("HolidayCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([academicYearId, startDate])
+  @@map("holidays")
 }

@@ -1,5 +1,5 @@
 import { MARK_STATUS_LABELS, type MarksTaskStatus } from '@school/shared';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarClock } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { Alert, Badge, Card, EmptyState, PageHeader, PageSpinner } from '@/components/ui';
 import { TeacherWeek } from '@/features/timetable/pages/TimetablePages';
@@ -92,7 +92,8 @@ export function MyTimetablePage() {
     <div>
       <PageHeader
         title="My timetable"
-        description="Your week across every published class timetable."
+        icon={CalendarClock}
+        description="Your week across every published class timetable. The current lesson is highlighted and updates on its own."
       />
       {tt.isLoading ? (
         <PageSpinner />
@@ -104,7 +105,7 @@ export function MyTimetablePage() {
           description="Ask the office to link it under Staff."
         />
       ) : (
-        <TeacherWeek timetable={tt.data} />
+        <TeacherWeek timetable={tt.data} live />
       )}
     </div>
   );

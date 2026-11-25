@@ -8,7 +8,16 @@ import {
   type TimetableItem,
   type TimetableStatus,
 } from '@school/shared';
-import { ArrowLeft, Plus, Printer, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarHeart,
+  CircleCheck,
+  Clock,
+  Plus,
+  Printer,
+  Radio,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
@@ -42,7 +51,16 @@ import {
   useTimetableClashes,
   useTimetables,
 } from '../timetable-api';
+import { useHolidays } from '@/features/holidays/holidays-api';
 import { useConfirm } from '@/lib/dialogs';
+import {
+  addDays,
+  isoWeekday,
+  lessonStatus,
+  useSchoolNow,
+  weekStart,
+  type LessonStatus,
+} from '../week-status';
 
 const STATUS_TONE: Record<TimetableStatus, 'gray' | 'green' | 'navy'> = {
   DRAFT: 'gray',
@@ -52,7 +70,43 @@ const STATUS_TONE: Record<TimetableStatus, 'gray' | 'green' | 'navy'> = {
 
 // --- Read-only week grid (teacher view) -----------------------------------------------------
 
-export function TeacherWeek({ timetable }: { timetable: TeacherTimetable }) {
+const dateLabel = new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
+
+const CELL: Record<LessonStatus, string> = {
+  done: 'bg-gray-50 text-ink-muted ring-1 ring-gray-200 opacity-80',
+  current: 'bg-emerald-50 ring-2 ring-emerald-500 shadow-md shadow-emerald-500/20',
+  next: 'bg-brand-gold-light ring-1 ring-brand-gold',
+  upcoming: 'bg-sky-50 ring-1 ring-sky-200',
+  holiday: 'bg-gray-100/70 text-gray-400 opacity-60',
+};
+
+const LEGEND: [LessonStatus, string][] = [
+  ['current', 'Now'],
+  ['next', 'Next'],
+  ['upcoming', 'Upcoming'],
+  ['done', 'Done'],
+  ['holiday', 'Holiday'],
+];
+
+/**
+ * A teacher's week. With `live`, it shows the current week (or the coming week on a Sunday) with
+ * dates, colours each lesson as done / now / next / upcoming, and fades holidays.
+ */
+export function TeacherWeek({
+  timetable,
+  live = false,
+}: {
+  timetable: TeacherTimetable;
+  live?: boolean;
+}) {
+  const now = useSchoolNow();
+  const monday = weekStart(now.date);
+  const saturday = addDays(monday, 5);
+  const holidays = useHolidays({ from: monday, to: addDays(monday, 6) }, live);
   if (!timetable.entries.length) return <EmptyState title="No published lessons yet" />;
   const slots = [
     ...new Map(
@@ -65,48 +119,216 @@ export function TeacherWeek({ timetable }: { timetable: TeacherTimetable }) {
   const days = SCHOOL_DAYS.filter(
     (d) => d <= 6 || timetable.entries.some((e) => e.dayOfWeek === d),
   );
+  const dateOf = (d: number) => addDays(monday, d - 1);
+  const holidayOn = (date: string) =>
+    holidays.data?.find((h) => h.startDate <= date && date <= h.endDate) ?? null;
+
+  // Status per lesson, and the next lesson still to come today.
+  const statusOf = (e: TeacherTimetable['entries'][number]) =>
+    lessonStatus({ date: dateOf(e.dayOfWeek), ...e }, now, !!holidayOn(dateOf(e.dayOfWeek)));
+  const todayLessons = live
+    ? timetable.entries
+        .filter((e) => dateOf(e.dayOfWeek) === now.date && !holidayOn(now.date))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    : [];
+  const current = todayLessons.find((e) => statusOf(e) === 'current');
+  const next = todayLessons.find((e) => statusOf(e) === 'upcoming');
+  const todayHoliday = live ? holidayOn(now.date) : null;
+
   return (
-    <Card className="overflow-x-auto">
-      <table className="min-w-full border-collapse text-sm">
-        <thead>
-          <tr className="text-xs uppercase text-ink-muted">
-            <th className="px-3 py-2 text-left font-medium">Time</th>
-            {days.map((d) => (
-              <th key={d} className="px-3 py-2 text-left font-medium">
-                {DAY_SHORT[d]}
-              </th>
+    <div className="space-y-4">
+      {live && (
+        <div className="grid gap-3 md:grid-cols-2" aria-live="polite">
+          {todayHoliday ? (
+            <div className="flex items-center gap-3 rounded-xl border border-brand-gold/40 bg-brand-gold-light p-4 md:col-span-2">
+              <CalendarHeart className="h-6 w-6 text-brand-gold-dark" aria-hidden="true" />
+              <p className="text-sm text-ink">
+                Today is a holiday: <strong>{todayHoliday.name}</strong>. Enjoy the day!
+              </p>
+            </div>
+          ) : (
+            <>
+              <NowCard
+                tone="current"
+                label="Now"
+                lesson={current}
+                empty={
+                  isoWeekday(now.date) === 7
+                    ? 'Sunday — no school today'
+                    : todayLessons.length
+                      ? 'No lesson right now'
+                      : 'No lessons today'
+                }
+              />
+              <NowCard
+                tone="next"
+                label="Next"
+                lesson={next}
+                empty={todayLessons.length ? 'No more lessons today' : '—'}
+              />
+            </>
+          )}
+        </div>
+      )}
+      <Card className="overflow-x-auto">
+        {live && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-100 px-4 py-3 text-xs text-ink-muted">
+            <span className="font-semibold uppercase tracking-wide">
+              Week of {dateLabel.format(new Date(`${monday}T00:00:00Z`))} –{' '}
+              {dateLabel.format(new Date(`${saturday}T00:00:00Z`))}
+            </span>
+            {LEGEND.map(([k, label]) => (
+              <span key={k} className="flex items-center gap-1.5">
+                <span className={`h-3 w-3 rounded ${CELL[k]}`} aria-hidden="true" />
+                {label}
+              </span>
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {slots.map((s) => (
-            <tr key={s.start}>
-              <td className="whitespace-nowrap px-3 py-2 text-xs text-ink-muted">
-                {s.start}–{s.end}
-              </td>
+          </div>
+        )}
+        <table className="min-w-full border-collapse text-sm">
+          <thead>
+            <tr className="text-xs uppercase text-ink-muted">
+              <th className="px-3 py-2 text-left font-medium">Time</th>
               {days.map((d) => {
-                const e = timetable.entries.find(
-                  (x) => x.dayOfWeek === d && x.startTime === s.start,
-                );
+                const date = dateOf(d);
+                const isToday = live && date === now.date;
+                const holiday = live ? holidayOn(date) : null;
                 return (
-                  <td key={d} className="px-3 py-2 align-top">
-                    {e ? (
-                      <div className="rounded-md bg-brand-navy/5 px-2 py-1">
-                        <p className="font-medium text-ink">{e.subjectName}</p>
+                  <th key={d} className="px-3 py-2 text-left align-bottom font-medium">
+                    <span
+                      className={`inline-flex flex-col rounded-lg px-2 py-1 ${
+                        isToday ? 'bg-brand-navy text-white shadow-md shadow-brand-navy/20' : ''
+                      }`}
+                    >
+                      <span>{DAY_SHORT[d]}</span>
+                      {live && (
+                        <span
+                          className={`text-[11px] normal-case ${isToday ? 'text-brand-gold' : 'text-ink-muted/80'}`}
+                        >
+                          {isToday ? 'Today' : dateLabel.format(new Date(`${date}T00:00:00Z`))}
+                        </span>
+                      )}
+                    </span>
+                    {holiday && (
+                      <span
+                        className="mt-1 block max-w-[9rem] truncate text-[11px] font-semibold normal-case text-brand-gold-dark"
+                        title={holiday.name}
+                      >
+                        {holiday.name}
+                      </span>
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {slots.map((slot) => (
+              <tr key={slot.start}>
+                <td className="whitespace-nowrap px-3 py-2 text-xs text-ink-muted">
+                  {slot.start}–{slot.end}
+                </td>
+                {days.map((d) => {
+                  const e = timetable.entries.find(
+                    (x) => x.dayOfWeek === d && x.startTime === slot.start,
+                  );
+                  if (!e) return <td key={d} className="px-3 py-2" />;
+                  const base = live ? statusOf(e) : 'upcoming';
+                  const status: LessonStatus = live && e === next ? 'next' : base;
+                  return (
+                    <td key={d} className="px-3 py-2 align-top">
+                      <div
+                        className={`relative rounded-lg px-2.5 py-1.5 transition-all ${live ? CELL[status] : 'bg-brand-navy/5'}`}
+                        data-status={live ? status : undefined}
+                      >
+                        {live && status === 'current' && (
+                          <span className="absolute -right-1.5 -top-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+                            </span>
+                            Now
+                          </span>
+                        )}
+                        {live && status === 'next' && (
+                          <span className="absolute -right-1.5 -top-1.5 rounded-full bg-brand-gold px-1.5 py-0.5 text-[10px] font-semibold text-brand-navy-dark shadow">
+                            Next
+                          </span>
+                        )}
+                        <p
+                          className={`flex items-center gap-1 font-medium ${status === 'done' || status === 'holiday' ? '' : 'text-ink'}`}
+                        >
+                          {live && status === 'done' && (
+                            <CircleCheck
+                              className="h-3.5 w-3.5 shrink-0 text-emerald-600"
+                              aria-label="Done"
+                            />
+                          )}
+                          {e.subjectName}
+                        </p>
                         <p className="text-xs text-ink-muted">
                           {e.className} – {e.sectionName}
                           {e.roomLabel ? ` · ${e.roomLabel}` : ''}
                         </p>
                       </div>
-                    ) : null}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+function NowCard({
+  tone,
+  label,
+  lesson,
+  empty,
+}: {
+  tone: 'current' | 'next';
+  label: string;
+  lesson: TeacherTimetable['entries'][number] | undefined;
+  empty: string;
+}) {
+  const Icon = tone === 'current' ? Radio : Clock;
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border p-4 ${
+        lesson
+          ? tone === 'current'
+            ? 'border-emerald-200 bg-emerald-50'
+            : 'border-brand-gold/40 bg-brand-gold-light/60'
+          : 'border-gray-200 bg-white'
+      }`}
+    >
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+          tone === 'current' ? 'bg-emerald-600 text-white' : 'bg-brand-gold text-brand-navy-dark'
+        } ${lesson ? '' : 'opacity-40'}`}
+      >
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
+        {lesson ? (
+          <p className="truncate text-sm text-ink">
+            <strong className="font-semibold">{lesson.subjectName}</strong> · {lesson.className} –{' '}
+            {lesson.sectionName}
+            <span className="text-ink-muted">
+              {' '}
+              · {tone === 'current' ? `until ${lesson.endTime}` : `at ${lesson.startTime}`}
+              {lesson.roomLabel ? ` · ${lesson.roomLabel}` : ''}
+            </span>
+          </p>
+        ) : (
+          <p className="text-sm text-ink-muted">{empty}</p>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -54,12 +54,31 @@ export function TodayAttendanceCards({ compact = false }: { compact?: boolean })
   );
 }
 
+/**
+ * Teacher attendance. A class teacher of exactly one class goes straight to that class's sheet;
+ * the class picker only appears for teachers who are class teacher of more than one class.
+ */
 export function TeacherAttendancePage() {
+  const sections = useMyAttendanceSections();
+  const only = sections.data?.length === 1 ? sections.data[0] : null;
+  if (only) {
+    return (
+      <div className="max-w-5xl">
+        <PageHeader
+          title={`Attendance · ${only.className} – ${only.sectionName}`}
+          icon={CalendarCheck}
+          description="Mark today's attendance for your class. You can fix mistakes until the end of the day; after that, ask the office."
+        />
+        <SheetView sectionId={only.sectionId} showBack={false} />
+      </div>
+    );
+  }
   return (
     <div>
       <PageHeader
         title="Attendance"
-        description="Mark today's attendance for your class. You can fix mistakes until the end of the day; after that, ask the office."
+        icon={CalendarCheck}
+        description="Choose your class to mark today's attendance. You can fix mistakes until the end of the day; after that, ask the office."
       />
       <TodayAttendanceCards />
     </div>
@@ -68,17 +87,30 @@ export function TeacherAttendancePage() {
 
 export function TeacherSheetPage() {
   const { sectionId = '' } = useParams();
+  const sections = useMyAttendanceSections();
+  // Teachers with a single class have no class picker to go back to.
+  const showBack = (sections.data?.length ?? 0) > 1;
+  return (
+    <div className="max-w-5xl">
+      <SheetView sectionId={sectionId} showBack={showBack} />
+    </div>
+  );
+}
+
+function SheetView({ sectionId, showBack }: { sectionId: string; showBack: boolean }) {
   const [params, setParams] = useSearchParams();
   const today = todayIso();
   const date = params.get('date') ?? today;
   return (
-    <div className="max-w-5xl">
-      <Link
-        to="/teacher/attendance"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-brand-navy hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Attendance
-      </Link>
+    <>
+      {showBack && (
+        <Link
+          to="/teacher/attendance"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-brand-navy hover:underline"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All my classes
+        </Link>
+      )}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <Field label="Date" htmlFor="t-att-date">
           <Input
@@ -99,7 +131,7 @@ export function TeacherSheetPage() {
         </Link>
       </div>
       <AttendanceSheetPanel sectionId={sectionId} date={date} />
-    </div>
+    </>
   );
 }
 

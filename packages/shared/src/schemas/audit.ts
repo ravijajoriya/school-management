@@ -129,6 +129,8 @@ export const AUDIT_ACTIONS = {
   ID_CARDS_GENERATED: 'id_cards.generated',
   // Phase 8
   REPORT_EXPORTED: 'report.exported',
+  HOLIDAY_SAVED: 'holiday.saved',
+  HOLIDAY_DELETED: 'holiday.deleted',
   DATA_IMPORT_COMMITTED: 'data_import.committed',
   // Development tooling: demo data seed / clear (pnpm demo:seed, pnpm demo:clear)
   DEMO_DATA_SEEDED: 'demo_data.seeded',

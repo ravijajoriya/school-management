@@ -51,6 +51,7 @@ const UNIQUE_MESSAGES: Record<string, string> = {
 /** Messages for exclusion constraints (Postgres 23P01), keyed by constraint name. */
 const EXCLUSION_MESSAGES: Record<string, string> = {
   leave_requests_no_overlap: 'startDate: This overlaps another pending or approved leave request',
+  holidays_no_overlap: 'startDate: This overlaps another holiday in the same year',
   student_transport_no_overlap:
     'startDate: The student already has transport for these dates — end the current route first',
 };

@@ -99,7 +99,9 @@ test.describe('Attendance & leave', () => {
     );
     await navTo(page, 'Attendance');
     await expect(page).toHaveURL(/\/teacher\/attendance$/);
-    await page.getByRole('link', { name: /Class 1 – A/ }).click();
+    // Class teacher of one class: the sheet opens straight away, with no class to choose.
+    await expect(page.getByRole('heading', { name: 'Attendance · Class 1 – A' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'All my classes' })).toHaveCount(0);
     const bhavya = page.getByRole('row', { name: 'Bhavya Sharma' });
     await bhavya.getByRole('radio', { name: 'Absent' }).check({ force: true });
     await bhavya.getByLabel('Remarks for Bhavya Sharma').fill('Fever');

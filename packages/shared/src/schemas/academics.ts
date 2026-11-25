@@ -193,6 +193,14 @@ export interface TeacherAssignmentItem {
 
 // --- Teacher portal ------------------------------------------------------------------------
 
+export interface TeacherPeriod {
+  periodNumber: number;
+  startTime: string;
+  endTime: string;
+  subjectName: string;
+  roomLabel: string | null;
+}
+
 export interface TeacherSectionItem {
   sectionId: string;
   className: string;
@@ -201,6 +209,15 @@ export interface TeacherSectionItem {
   isClassTeacher: boolean;
   subjects: string[];
   studentCount: number;
+  /**
+   * The teacher's periods in this section on the schedule day: today, or the next school day
+   * when today is a Sunday, a holiday or has no lessons. The list is sorted class-teacher class
+   * first, then by these periods.
+   */
+  periods: TeacherPeriod[];
+  /** YYYY-MM-DD the periods are for (null when the teacher has no published lessons). */
+  scheduleDate: string | null;
+  scheduleIsToday: boolean;
 }
 
 export interface RosterItem {
@@ -211,4 +228,40 @@ export interface RosterItem {
   gender: string | null;
   dateOfBirth: string;
   guardian: { fullName: string; relationship: string; phone: string } | null;
+  /** Today's attendance (null = not marked yet, or not a school day). */
+  attendanceToday: 'PRESENT' | 'ABSENT' | 'LATE' | null;
+  /** This month so far: present + late out of marked days (null when nothing is marked). */
+  monthPercent: number | null;
+}
+
+// --- Holidays ------------------------------------------------------------------------------
+
+export const saveHolidaySchema = z
+  .object({
+    academicYearId: uuidSchema,
+    name: z.string().trim().min(2, 'Enter the holiday name').max(120),
+    startDate: z.iso.date('Enter the first day'),
+    endDate: z.iso.date('Enter the last day'),
+  })
+  .refine((h) => h.endDate >= h.startDate, {
+    path: ['endDate'],
+    message: 'The last day cannot be before the first day',
+  });
+export type SaveHolidayInput = z.infer<typeof saveHolidaySchema>;
+
+export const listHolidaysQuerySchema = z.object({
+  academicYearId: uuidSchema.optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+});
+export type ListHolidaysQuery = z.infer<typeof listHolidaysQuerySchema>;
+
+export interface HolidayItem {
+  id: string;
+  academicYearId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  /** Calendar days covered. */
+  days: number;
 }
