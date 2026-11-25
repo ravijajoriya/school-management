@@ -11,12 +11,14 @@ import { Alert, Badge, Button, Card, EmptyState, Field, PageHeader, Select } fro
 import { errorMessages } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/format';
 import { downloadImportTemplate, useImportHistory, useRunImport } from '../reports-api';
+import { useConfirm } from '@/lib/dialogs';
 
 /**
  * Go-live data import: download the template, fill it in (Excel or CSV), check the file (nothing
  * is saved), fix any errors, then import. Imports are all-or-nothing and end with a reconciliation.
  */
 export function ImportPage() {
+  const confirm = useConfirm();
   const [type, setType] = useState<ImportType>('students');
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -29,7 +31,11 @@ export function ImportPage() {
     if (!file) return;
     if (
       !dryRun &&
-      !window.confirm(`Import ${file.name}? This adds the records to the live system.`)
+      !(await confirm({
+        title: `Import ${file.name}?`,
+        message: `This adds the records to the live system.`,
+        confirmLabel: 'Import',
+      }))
     )
       return;
     setError(null);

@@ -1,7 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
-import { navTo } from './nav.ts';
+import { confirmDialog, navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -88,6 +88,7 @@ test.describe('Reports, exports & data import', () => {
     await page.getByRole('button', { name: 'Check file' }).click();
     await expect(page.getByText('All 2 rows are valid. Click Import to add them.')).toBeVisible();
     await page.getByRole('button', { name: 'Import', exact: true }).click();
+    await confirmDialog(page, 'Import');
     await expect(page.getByText('Imported 2 records from students.csv.')).toBeVisible();
     await expect(page.getByRole('row', { name: /Class 5 – A 2 2 Matches/ })).toBeVisible();
     await expect(page.getByRole('cell', { name: '2 of 2' })).toBeVisible();

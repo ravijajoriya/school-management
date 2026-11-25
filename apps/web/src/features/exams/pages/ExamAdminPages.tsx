@@ -41,6 +41,7 @@ import {
   useGradingScales,
   useSaveGradingScale,
 } from '../exams-api';
+import { useConfirm } from '@/lib/dialogs';
 
 const EXAM_TONE: Record<ExamStatus, 'gray' | 'navy' | 'amber' | 'green'> = {
   DRAFT: 'gray',
@@ -258,6 +259,7 @@ function CreateExamModal({ yearId, onClose }: { yearId: string; onClose: () => v
 // --- Detail ----------------------------------------------------------------------------------
 
 export function ExamDetailPage() {
+  const confirm = useConfirm();
   const { id = '' } = useParams();
   const exam = useExamination(id);
   const progress = useExamProgress(id, !!exam.data && exam.data.status !== 'DRAFT');
@@ -344,11 +346,16 @@ export function ExamDetailPage() {
                   Pause marks entry
                 </Button>
                 <Button
-                  onClick={() =>
-                    window.confirm(
-                      'Finalise results? Marks and grades are locked permanently after this.',
-                    ) && run(() => finalize.mutateAsync(id), 'Results finalised and locked.')
-                  }
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        title: 'Finalise results?',
+                        message: 'Marks and grades are locked permanently after this.',
+                        confirmLabel: 'Finalise',
+                      })
+                    )
+                      void run(() => finalize.mutateAsync(id), 'Results finalised and locked.');
+                  }}
                   loading={finalize.isPending}
                 >
                   Finalise results

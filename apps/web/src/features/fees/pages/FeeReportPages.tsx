@@ -46,6 +46,7 @@ import {
 } from '../fees-api';
 import { CancelPaymentModal } from './FeeLedgerPages';
 import { usePagination } from '@/lib/use-pagination';
+import { usePrompt } from '@/lib/dialogs';
 
 const money = (n: number) => formatRupees(n);
 const firstOfMonth = () => `${todayIso().slice(0, 7)}-01`;
@@ -53,6 +54,7 @@ const firstOfMonth = () => `${todayIso().slice(0, 7)}-01`;
 // --- Payments list -------------------------------------------------------------------------
 
 export function PaymentsPage() {
+  const prompt = usePrompt();
   const { can } = useAuth();
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState(firstOfMonth());
@@ -272,11 +274,14 @@ export function PaymentsPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              const reason = window.prompt(
-                                'Why did the cheque bounce?',
-                                'Insufficient funds',
-                              );
+                            onClick={async () => {
+                              const reason = await prompt({
+                                title: 'Mark cheque as bounced',
+                                label: 'Reason',
+                                defaultValue: 'Insufficient funds',
+                                confirmLabel: 'Mark bounced',
+                                tone: 'danger',
+                              });
                               if (reason !== null)
                                 void run(
                                   () => actions.bounced.mutateAsync({ id: p.id, reason }),

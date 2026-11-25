@@ -47,6 +47,7 @@ import {
   useRecordPayment,
   useStudentLedger,
 } from '../fees-api';
+import { useConfirm, usePrompt } from '@/lib/dialogs';
 
 const DUE_TONE: Record<DueStatus, 'gray' | 'amber' | 'green' | 'navy'> = {
   OPEN: 'gray',
@@ -100,6 +101,8 @@ function PaymentStatusBadges({ p }: { p: PaymentListItem }) {
 // --- Student fee ledger --------------------------------------------------------------------
 
 export function StudentFeesPage() {
+  const prompt = usePrompt();
+  const confirm = useConfirm();
   const { studentId = '' } = useParams();
   const [params, setParams] = useSearchParams();
   const yearId = params.get('year') ?? undefined;
@@ -275,10 +278,16 @@ export function StudentFeesPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() =>
-                                window.confirm(`Delete "${d.description}"?`) &&
-                                run(() => del.mutateAsync(d.id), 'Due deleted.')
-                              }
+                              onClick={async () => {
+                                if (
+                                  await confirm({
+                                    title: `Delete "${d.description}"?`,
+                                    confirmLabel: 'Delete',
+                                    tone: 'danger',
+                                  })
+                                )
+                                  void run(() => del.mutateAsync(d.id), 'Due deleted.');
+                              }}
                             >
                               Delete
                             </Button>
@@ -351,11 +360,14 @@ export function StudentFeesPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              const reason = window.prompt(
-                                'Why did the cheque bounce?',
-                                'Insufficient funds',
-                              );
+                            onClick={async () => {
+                              const reason = await prompt({
+                                title: 'Mark cheque as bounced',
+                                label: 'Reason',
+                                defaultValue: 'Insufficient funds',
+                                confirmLabel: 'Mark bounced',
+                                tone: 'danger',
+                              });
                               if (reason !== null)
                                 void run(
                                   () => actions.bounced.mutateAsync({ id: p.id, reason }),

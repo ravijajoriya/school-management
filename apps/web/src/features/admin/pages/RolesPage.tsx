@@ -30,6 +30,7 @@ import {
   useRoles,
   useSetRolePermissions,
 } from '../api';
+import { useConfirm } from '@/lib/dialogs';
 
 const MODULE_LABELS: Record<string, string> = {
   users: 'Users',
@@ -121,6 +122,7 @@ function RoleEditor({
   permissions: PermissionItem[];
   onDeleted: () => void;
 }) {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const savePermissions = useSetRolePermissions();
   const deleteRole = useDeleteRole();
@@ -160,7 +162,14 @@ function RoleEditor({
   };
 
   const onDelete = async () => {
-    if (!window.confirm(`Delete the role "${role.name}"?`)) return;
+    if (
+      !(await confirm({
+        title: `Delete the role "${role.name}"?`,
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      }))
+    )
+      return;
     try {
       await deleteRole.mutateAsync(role.id);
       onDeleted();

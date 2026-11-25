@@ -35,6 +35,7 @@ import {
   useSaveFeeHead,
   useSaveFeeStructure,
 } from '../fees-api';
+import { useConfirm } from '@/lib/dialogs';
 
 // --- Fee heads ---------------------------------------------------------------------------------
 
@@ -181,6 +182,7 @@ function FeeHeadModal({ head, onClose }: { head: FeeHeadItem | null; onClose: ()
 // --- Fee plans ---------------------------------------------------------------------------------
 
 export function FeePlansPage() {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const manage = can(PERMISSIONS.FEES_CONFIGURE);
   const { years, yearId, setYearId, year } = useYearSelection();
@@ -192,9 +194,11 @@ export function FeePlansPage() {
 
   const onGenerate = async (p: FeeStructureRow) => {
     if (
-      !window.confirm(
-        `Bill every current student of ${p.class.name} with "${p.name}" (${formatRupees(p.total)} each)? Students already billed are skipped.`,
-      )
+      !(await confirm({
+        title: `Bill every current student of ${p.class.name} with "${p.name}" (${formatRupees(p.total)} each)?`,
+        message: `Students already billed are skipped.`,
+        confirmLabel: 'Generate dues',
+      }))
     )
       return;
     setMessage(null);

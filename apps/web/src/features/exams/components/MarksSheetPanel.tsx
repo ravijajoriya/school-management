@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Card, EmptyState, Input, PageSpinner } from '@/components/ui';
 import { errorMessages, splitFieldErrors } from '@/lib/api-client';
 import { useMarksActions, useMarksSheet } from '../exams-api';
+import { useConfirm, usePrompt } from '@/lib/dialogs';
 
 const TONE: Record<MarkStatus, 'gray' | 'amber' | 'green' | 'navy'> = {
   DRAFT: 'gray',
@@ -44,6 +45,8 @@ function SheetEditor({
   sheet: MarksSheet;
   onMessage: (m: { tone: 'success' | 'error'; text: string } | null) => void;
 }) {
+  const prompt = usePrompt();
+  const confirm = useConfirm();
   const { save, submit, review } = useMarksActions();
   const [draft, setDraft] = useState<Draft>(() =>
     Object.fromEntries(
@@ -239,11 +242,16 @@ function SheetEditor({
                 Save draft
               </Button>
               <Button
-                onClick={() =>
-                  window.confirm(
-                    'Submit these marks for approval? You will not be able to change them unless they are returned.',
-                  ) && run(() => submit.mutateAsync(ids), 'Marks submitted for approval.')
-                }
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: 'Submit these marks for approval?',
+                      message: 'You will not be able to change them unless they are returned.',
+                      confirmLabel: 'Submit',
+                    })
+                  )
+                    void run(() => submit.mutateAsync(ids), 'Marks submitted for approval.');
+                }}
                 loading={submit.isPending}
                 disabled={!sheet.canSubmit || changes.length > 0}
                 title={changes.length ? 'Save first' : undefined}
@@ -256,8 +264,13 @@ function SheetEditor({
             <>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  const remarks = window.prompt('What should the teacher correct?', '');
+                onClick={async () => {
+                  const remarks = await prompt({
+                    title: 'Return marks to the teacher',
+                    label: 'What should the teacher correct?',
+                    multiline: true,
+                    confirmLabel: 'Return marks',
+                  });
                   if (remarks !== null)
                     void run(
                       () => review.mutateAsync({ ...ids, decision: 'RETURN', remarks }),

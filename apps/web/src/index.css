@@ -21,6 +21,66 @@
   --color-ink-muted: #4b5563;
 
   --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Motion (admin & teacher portals). Use as animate-fade-up, animate-scale-in, … */
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-scale-in: scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-slide-down: slide-down 0.18s ease-out both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+    }
+  }
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+  }
+}
+
+/* Portal tables: gentle row highlight so long lists are easier to follow. */
+.portal-main table tbody tr {
+  transition: background-color 0.15s ease;
+}
+.portal-main table tbody tr:hover {
+  background-color: rgb(19 41 75 / 0.035);
+}
+
+/* Thin, quiet scrollbars inside the portal shell. */
+.portal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(19 41 75 / 0.25) transparent;
+}
+.portal-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+}
+
+/* Respect the operating system's "reduce motion" setting everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 html {

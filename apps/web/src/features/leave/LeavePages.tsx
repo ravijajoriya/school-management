@@ -41,6 +41,7 @@ import {
   useReviewLeave,
 } from './leave-api';
 import { usePagination } from '@/lib/use-pagination';
+import { useConfirm } from '@/lib/dialogs';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -48,15 +49,19 @@ const textarea =
 // --- Teacher: apply & history ----------------------------------------------------------------
 
 export function MyLeavePage() {
+  const confirm = useConfirm();
   const mine = useMyLeave();
   const cancel = useCancelLeave();
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
   const onCancel = async (l: LeaveRequestItem) => {
     if (
-      !window.confirm(
-        `Cancel your ${LEAVE_TYPE_LABELS[l.leaveType].toLowerCase()} for ${leaveDates(l)}?`,
-      )
+      !(await confirm({
+        title: `Cancel your ${LEAVE_TYPE_LABELS[l.leaveType].toLowerCase()} for ${leaveDates(l)}?`,
+        confirmLabel: 'Cancel leave',
+        tone: 'danger',
+        cancelLabel: 'Keep it',
+      }))
     )
       return;
     setMessage(null);

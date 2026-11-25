@@ -5,6 +5,7 @@ import { Alert, Button, Card, Select } from '@/components/ui';
 import { errorMessages } from '@/lib/api-client';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { downloadPrivateFile, useDocumentActions } from '../people-api';
+import { useConfirm } from '@/lib/dialogs';
 
 /** Private documents of a staff member or student: upload, download, delete. */
 export function DocumentsPanel({
@@ -22,6 +23,7 @@ export function DocumentsPanel({
   canManage: boolean;
   canDownload?: boolean;
 }) {
+  const confirm = useConfirm();
   const { upload, remove } = useDocumentActions(basePath, refreshKey);
   const [type, setType] = useState(types[0]);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +120,16 @@ export function DocumentsPanel({
                     size="sm"
                     variant="ghost"
                     aria-label={`Delete ${d.fileName}`}
-                    onClick={() => window.confirm('Delete this document?') && remove.mutate(d.id)}
+                    onClick={async () => {
+                      if (
+                        await confirm({
+                          title: 'Delete this document?',
+                          confirmLabel: 'Delete',
+                          tone: 'danger',
+                        })
+                      )
+                        void remove.mutate(d.id);
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

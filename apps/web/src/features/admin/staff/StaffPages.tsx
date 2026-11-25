@@ -47,6 +47,7 @@ import {
   useSaveEmployee,
 } from '../people-api';
 import { usePagination } from '@/lib/use-pagination';
+import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', LEFT: 'red' } as const;
 
@@ -307,6 +308,7 @@ function EmployeeFormModal({
 }
 
 export function EmployeeDetailPage() {
+  const confirm = useConfirm();
   const { id = '' } = useParams();
   const employee = useEmployee(id);
   const { can } = useAuth();
@@ -408,11 +410,17 @@ export function EmployeeDetailPage() {
                   size="sm"
                   variant="ghost"
                   loading={link.isPending}
-                  onClick={() =>
-                    window.confirm(
-                      `Unlink this login from ${e.fullName}? The login itself is not deleted.`,
-                    ) && link.mutate({ id: e.id, userId: null })
-                  }
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        title: `Unlink this login from ${e.fullName}?`,
+                        message: `The login itself is not deleted.`,
+                        confirmLabel: 'Unlink',
+                        tone: 'danger',
+                      })
+                    )
+                      void link.mutate({ id: e.id, userId: null });
+                  }}
                 >
                   Unlink login
                 </Button>

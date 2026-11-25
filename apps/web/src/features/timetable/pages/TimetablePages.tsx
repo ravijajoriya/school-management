@@ -42,6 +42,7 @@ import {
   useTimetableClashes,
   useTimetables,
 } from '../timetable-api';
+import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE: Record<TimetableStatus, 'gray' | 'green' | 'navy'> = {
   DRAFT: 'gray',
@@ -316,6 +317,7 @@ function Editor({
   message: Message;
   setMessage: (m: Message) => void;
 }) {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const editable = timetable.status === 'DRAFT' && can(PERMISSIONS.TIMETABLE_MANAGE);
   const structure = useStructure(timetable.section.academicYear.id);
@@ -469,10 +471,16 @@ function Editor({
             {can(PERMISSIONS.TIMETABLE_MANAGE) && timetable.status !== 'ARCHIVED' && (
               <Button
                 variant="ghost"
-                onClick={() =>
-                  window.confirm('Archive this timetable?') &&
-                  run(() => archive.mutateAsync(timetable.id), 'Archived.')
-                }
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: 'Archive this timetable?',
+                      confirmLabel: 'Archive',
+                      tone: 'danger',
+                    })
+                  )
+                    void run(() => archive.mutateAsync(timetable.id), 'Archived.');
+                }}
               >
                 Archive
               </Button>

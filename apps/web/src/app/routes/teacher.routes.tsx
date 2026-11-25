@@ -1,17 +1,47 @@
 import { PERMISSIONS, type PermissionCode } from '@school/shared';
+import {
+  CalendarCheck,
+  CalendarClock,
+  CalendarOff,
+  Handshake,
+  LayoutDashboard,
+  PenLine,
+  School,
+  Wallet,
+} from 'lucide-react';
 import type { RouteObject } from 'react-router';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { PortalLayout, type PortalNavItem } from '@/layouts/PortalLayout';
 
 const TEACHER_NAV: PortalNavItem[] = [
-  { to: '/teacher', label: 'Dashboard', end: true },
-  { to: '/teacher/attendance', label: 'Attendance', permissions: [PERMISSIONS.ATTENDANCE_MARK] },
-  { to: '/teacher/classes', label: 'My classes' },
-  { to: '/teacher/marks', label: 'Marks entry', permissions: [PERMISSIONS.MARKS_ENTER] },
-  { to: '/teacher/timetable', label: 'My timetable' },
-  { to: '/teacher/leave', label: 'My leave', permissions: [PERMISSIONS.LEAVE_APPLY] },
-  { to: '/teacher/meetings', label: 'Parent meetings', permissions: [PERMISSIONS.MEETINGS_OWN] },
-  { to: '/teacher/payslips', label: 'My payslips' },
+  { to: '/teacher', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  {
+    to: '/teacher/attendance',
+    label: 'Attendance',
+    icon: CalendarCheck,
+    permissions: [PERMISSIONS.ATTENDANCE_MARK],
+  },
+  { to: '/teacher/classes', label: 'My classes', icon: School },
+  {
+    to: '/teacher/marks',
+    label: 'Marks entry',
+    icon: PenLine,
+    permissions: [PERMISSIONS.MARKS_ENTER],
+  },
+  { to: '/teacher/timetable', label: 'My timetable', icon: CalendarClock },
+  {
+    to: '/teacher/leave',
+    label: 'My leave',
+    icon: CalendarOff,
+    permissions: [PERMISSIONS.LEAVE_APPLY],
+  },
+  {
+    to: '/teacher/meetings',
+    label: 'Parent meetings',
+    icon: Handshake,
+    permissions: [PERMISSIONS.MEETINGS_OWN],
+  },
+  { to: '/teacher/payslips', label: 'My payslips', icon: Wallet },
 ];
 
 const attendance = () => import('@/features/attendance/pages/TeacherAttendancePages');

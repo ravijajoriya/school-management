@@ -1,7 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
-import { navTo } from './nav.ts';
+import { confirmDialog, navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -94,6 +94,7 @@ test.describe('Fees & receipts', () => {
     await planDialog.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('not billed yet')).toBeVisible();
     await page.getByRole('button', { name: 'Generate dues' }).click();
+    await confirmDialog(page, 'Generate dues');
     await expect(page.getByText('1 dues created for Class 1.')).toBeVisible();
 
     // Collect: the overdue instalment is pre-selected.

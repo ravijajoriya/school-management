@@ -1,7 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
-import { navTo } from './nav.ts';
+import { confirmDialog, navTo } from './nav.ts';
 
 async function signIn(page: Page, identifier: string, password: string, landing: RegExp) {
   await page.goto('/login');
@@ -70,6 +70,7 @@ test.describe('Academics, staff & students', () => {
     await expect(yearDialog.getByLabel('Name')).toHaveValue(`${y}-${y + 1}`);
     await yearDialog.getByRole('button', { name: 'Save' }).click();
     await page.getByRole('button', { name: 'Make current' }).click();
+    await confirmDialog(page, 'Make current');
     await expect(page.getByText('Current', { exact: true })).toBeVisible();
 
     // 2. Staff record, linked to the teacher's existing login.

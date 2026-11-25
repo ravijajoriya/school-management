@@ -1,7 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
-import { navTo } from './nav.ts';
+import { confirmDialog, navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -127,6 +127,7 @@ test.describe('Exams, results & timetable', () => {
     await page.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByText('Saved marks for 2 student(s).')).toBeVisible();
     await page.getByRole('button', { name: 'Submit for approval' }).click();
+    await confirmDialog(page, 'Submit');
     await expect(page.getByText('Marks submitted for approval.')).toBeVisible();
     await expect(page.getByRole('row', { name: 'Aarav Sharma' })).toContainText('Submitted');
 
@@ -145,6 +146,7 @@ test.describe('Exams, results & timetable', () => {
     await expect(office.getByText('Marks approved.')).toBeVisible();
     await office.getByRole('link', { name: 'Back to exam' }).click();
     await office.getByRole('button', { name: 'Finalise results' }).click();
+    await confirmDialog(office, 'Finalise');
     await expect(office.getByText('Results finalised and locked.')).toBeVisible();
 
     await office.getByRole('link', { name: /^Results/ }).click();

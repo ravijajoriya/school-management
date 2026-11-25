@@ -15,6 +15,7 @@ import { splitFieldErrors } from '@/lib/api-client';
 import { USER_STATUS_LABEL } from '@/lib/format';
 import { useCreateUser, useResetPassword, useRoles, useSetUserRoles, useUpdateUser } from '../api';
 import { RoleCheckboxes } from './RoleCheckboxes';
+import { useConfirm } from '@/lib/dialogs';
 
 const editSchema = updateUserSchema.extend({
   fullName: z.string().trim().min(2, 'Enter the full name').max(160),
@@ -151,6 +152,7 @@ function EditUserModal({
   user: UserListItem;
   onDone: (r: UserFormResult) => void;
 }) {
+  const confirm = useConfirm();
   const { can, user: me } = useAuth();
   const roles = useRoles(open && can(PERMISSIONS.ROLES_READ));
   const updateUser = useUpdateUser();
@@ -193,9 +195,12 @@ function EditUserModal({
 
   const onReset = async () => {
     if (
-      !window.confirm(
-        `Reset the password for ${user.fullName}? They will be signed out everywhere.`,
-      )
+      !(await confirm({
+        title: `Reset the password for ${user.fullName}?`,
+        message: `They will be signed out everywhere.`,
+        confirmLabel: 'Reset password',
+        tone: 'danger',
+      }))
     )
       return;
     setServerError(null);

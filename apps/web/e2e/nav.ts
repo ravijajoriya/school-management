@@ -19,3 +19,15 @@ export async function navTo(page: Page, label: string) {
   }
   await link.click();
 }
+
+/**
+ * Answers the in-app confirm/prompt dialog (these replaced window.confirm and window.prompt):
+ * optionally fills its input, then clicks the dialog's confirm button.
+ */
+export async function confirmDialog(page: Page, button: string, fill?: string) {
+  const dialog = page.getByRole('dialog').last();
+  if (fill !== undefined)
+    await dialog.getByRole('textbox').or(dialog.locator('input')).first().fill(fill);
+  await dialog.getByRole('button', { name: button, exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+}

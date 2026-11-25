@@ -57,6 +57,7 @@ import {
 import { AddressFields, EnrolmentFields, StudentFields } from './StudentFormParts';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
 import { usePagination } from '@/lib/use-pagination';
+import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', WITHDRAWN: 'red' } as const;
 const ENROLMENT_TONE = {
@@ -860,6 +861,7 @@ function GuardianModal({
   canRemove: boolean;
   onClose: () => void;
 }) {
+  const confirm = useConfirm();
   const actions = useStudentActions(studentId);
   const [form, setForm] = useState({
     fullName: guardian?.fullName ?? '',
@@ -892,7 +894,15 @@ function GuardianModal({
     }
   };
   const remove = async () => {
-    if (!guardian || !window.confirm(`Remove ${guardian.fullName}?`)) return;
+    if (
+      !guardian ||
+      !(await confirm({
+        title: `Remove ${guardian.fullName}?`,
+        confirmLabel: 'Remove',
+        tone: 'danger',
+      }))
+    )
+      return;
     try {
       await actions.removeGuardian.mutateAsync(guardian.id);
       onClose();
@@ -1209,6 +1219,7 @@ function ExitModal({
 // --- Promotions -------------------------------------------------------------------------------
 
 export function PromotionsPage() {
+  const confirm = useConfirm();
   const { years } = useYearSelection();
   const yearList = years.data ?? [];
   const [fromYearId, setFromYearId] = useState('');
@@ -1261,9 +1272,11 @@ export function PromotionsPage() {
               : e.toSectionId,
       }));
     if (
-      !window.confirm(
-        `Move ${entries.length} student(s) to the next year? This cannot be undone from here.`,
-      )
+      !(await confirm({
+        title: `Move ${entries.length} student(s) to the next year?`,
+        message: `This cannot be undone from here.`,
+        confirmLabel: 'Move students',
+      }))
     )
       return;
     try {

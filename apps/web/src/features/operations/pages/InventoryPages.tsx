@@ -38,6 +38,7 @@ import {
 } from '../operations-api';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
 import { usePagination } from '@/lib/use-pagination';
+import { useConfirm } from '@/lib/dialogs';
 
 const CONDITION_TONE: Record<ItemCondition, 'green' | 'amber' | 'red' | 'gray'> = {
   GOOD: 'green',
@@ -47,6 +48,7 @@ const CONDITION_TONE: Record<ItemCondition, 'green' | 'amber' | 'red' | 'gray'> 
 };
 
 export function InventoryPage() {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const manage = can(PERMISSIONS.INVENTORY_MANAGE);
   const categories = useInventoryCategories();
@@ -69,9 +71,12 @@ export function InventoryPage() {
   const [error, setError] = useState<string | null>(null);
   const onDelete = async (i: InventoryItemRow) => {
     if (
-      !window.confirm(
-        `Delete ${i.name} (${i.assetCode})? Use this only for entries made by mistake; mark real disposals as "Disposed".`,
-      )
+      !(await confirm({
+        title: `Delete ${i.name} (${i.assetCode})?`,
+        message: `Use this only for entries made by mistake; mark real disposals as "Disposed".`,
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      }))
     )
       return;
     setError(null);

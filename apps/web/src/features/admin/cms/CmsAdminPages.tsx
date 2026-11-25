@@ -48,6 +48,7 @@ import {
   useUploadMedia,
 } from '../cms-api';
 import { usePagination } from '@/lib/use-pagination';
+import { useConfirm } from '@/lib/dialogs';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -114,6 +115,7 @@ function useServerErrors() {
 // --- Announcements ----------------------------------------------------------------------------
 
 export function AnnouncementsAdminPage() {
+  const confirm = useConfirm();
   const [status, setStatus] = useState<AnnouncementStatus | ''>('');
   const [search, setSearch] = useState('');
   const { page, pageSize, setPage, setPageSize } = usePagination();
@@ -184,7 +186,16 @@ export function AnnouncementsAdminPage() {
                 </td>
                 <RowActions
                   onEdit={() => setEditing(a)}
-                  onDelete={() => window.confirm(`Delete "${a.title}"?`) && remove.mutate(a.id)}
+                  onDelete={async () => {
+                    if (
+                      await confirm({
+                        title: `Delete "${a.title}"?`,
+                        confirmLabel: 'Delete',
+                        tone: 'danger',
+                      })
+                    )
+                      void remove.mutate(a.id);
+                  }}
                 />
               </tr>
             ))}
@@ -335,6 +346,7 @@ function AnnouncementEditor({
 // --- Events -------------------------------------------------------------------------------------
 
 export function EventsAdminPage() {
+  const confirm = useConfirm();
   const [when, setWhen] = useState<'upcoming' | 'past' | ''>('upcoming');
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const list = useEvents({ when: when || undefined, page, pageSize });
@@ -379,7 +391,16 @@ export function EventsAdminPage() {
                 </td>
                 <RowActions
                   onEdit={() => setEditing(ev)}
-                  onDelete={() => window.confirm(`Delete "${ev.title}"?`) && remove.mutate(ev.id)}
+                  onDelete={async () => {
+                    if (
+                      await confirm({
+                        title: `Delete "${ev.title}"?`,
+                        confirmLabel: 'Delete',
+                        tone: 'danger',
+                      })
+                    )
+                      void remove.mutate(ev.id);
+                  }}
                 />
               </tr>
             ))}
@@ -517,6 +538,7 @@ function EventEditor({ item, onClose }: { item: EventItem | null; onClose: () =>
 // --- Internal notices ------------------------------------------------------------------------------
 
 export function NoticesAdminPage() {
+  const confirm = useConfirm();
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const list = useNotices(page, pageSize);
   const remove = useDeleteNotice();
@@ -551,7 +573,16 @@ export function NoticesAdminPage() {
                 </td>
                 <RowActions
                   onEdit={() => setEditing(n)}
-                  onDelete={() => window.confirm(`Delete "${n.title}"?`) && remove.mutate(n.id)}
+                  onDelete={async () => {
+                    if (
+                      await confirm({
+                        title: `Delete "${n.title}"?`,
+                        confirmLabel: 'Delete',
+                        tone: 'danger',
+                      })
+                    )
+                      void remove.mutate(n.id);
+                  }}
                 />
               </tr>
             ))}
@@ -830,6 +861,7 @@ export function MediaLibraryPage() {
 }
 
 function MediaEditor({ item, onClose }: { item: MediaItem; onClose: () => void }) {
+  const confirm = useConfirm();
   const update = useUpdateMedia();
   const remove = useDeleteMedia();
   const [error, setError] = useState<string | null>(null);
@@ -855,7 +887,14 @@ function MediaEditor({ item, onClose }: { item: MediaItem; onClose: () => void }
     }
   };
   const onDelete = async () => {
-    if (!window.confirm('Delete this image permanently?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete this image permanently?',
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      }))
+    )
+      return;
     setError(null);
     try {
       await remove.mutateAsync(item.id);

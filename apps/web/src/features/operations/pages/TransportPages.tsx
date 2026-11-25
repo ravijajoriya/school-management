@@ -38,6 +38,7 @@ import {
   useVehicles,
 } from '../operations-api';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { usePrompt } from '@/lib/dialogs';
 
 function TransportTabs() {
   const tab = (to: string, label: string) => (
@@ -370,7 +371,7 @@ export function RouteSheetPage() {
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Transport
         </Link>
-        <Button onClick={() => window.print()}>
+        <Button onClick={async () => window.print()}>
           <Printer className="h-4 w-4" aria-hidden="true" /> Print
         </Button>
       </div>
@@ -422,6 +423,7 @@ export function RouteSheetPage() {
 // --- Students --------------------------------------------------------------------------------
 
 export function TransportStudentsPage() {
+  const prompt = usePrompt();
   const { can } = useAuth();
   const manage = can(PERMISSIONS.TRANSPORT_MANAGE);
   const routes = useRoutes();
@@ -431,7 +433,14 @@ export function TransportStudentsPage() {
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onEnd = async (id: string, name: string) => {
-    const endDate = window.prompt(`Last day of transport for ${name} (YYYY-MM-DD)`, todayIso());
+    const endDate = await prompt({
+      title: `End transport for ${name}`,
+      label: 'Last day of transport',
+      inputType: 'date',
+      defaultValue: todayIso(),
+      confirmLabel: 'End transport',
+      tone: 'danger',
+    });
     if (!endDate) return;
     setError(null);
     try {

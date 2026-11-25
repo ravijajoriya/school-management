@@ -1,7 +1,7 @@
 import { expect, request, test, type Page } from '@playwright/test';
 import { ACCOUNTS, resetDatabase } from './db.ts';
 import { API_PORT } from './env.ts';
-import { navTo } from './nav.ts';
+import { confirmDialog, navTo } from './nav.ts';
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const addDays = (day: string, n: number) =>
@@ -191,6 +191,7 @@ test.describe('School operations', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('row', { name: /Anil Meena/ })).toContainText('₹32,700');
     await page.getByRole('button', { name: 'Approve' }).click();
+    await confirmDialog(page, 'Approve');
     await expect(
       page.getByText('Payroll approved. Staff can now see their payslips.'),
     ).toBeVisible();
@@ -202,7 +203,7 @@ test.describe('School operations', () => {
     await signIn(teacher, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
     await navTo(teacher, 'My payslips');
     await expect(teacher).toHaveURL(/\/teacher\/payslips$/);
-    await teacher.getByRole('link', { name: 'View' }).click();
+    await teacher.getByRole('link', { name: 'View', exact: true }).click();
     await expect(teacher.getByText(/Net pay:\s*₹32,700$/)).toBeVisible();
     await expect(teacher.getByText('Rupees Thirty Two Thousand Seven Hundred Only')).toBeVisible();
 

@@ -46,6 +46,7 @@ import {
   useYearSelection,
 } from '../people-api';
 import { YearPicker } from '../components/YearPicker';
+import { useConfirm } from '@/lib/dialogs';
 
 const YEAR_TONE = { DRAFT: 'gray', ACTIVE: 'green', CLOSED: 'navy' } as const;
 
@@ -79,6 +80,7 @@ function useFormErrors() {
 // --- Academic years ----------------------------------------------------------------------------
 
 export function AcademicYearsPage() {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const { years } = useYearSelection();
   const activate = useActivateYear();
@@ -89,10 +91,14 @@ export function AcademicYearsPage() {
 
   const onActivate = async (y: AcademicYearItem) => {
     const current = years.data?.find((x) => x.isActive);
-    const msg = current
-      ? `Make ${y.name} the current year? ${current.name} will be closed and become read-only.`
-      : `Make ${y.name} the current year?`;
-    if (!window.confirm(msg)) return;
+    const ok = await confirm({
+      title: `Make ${y.name} the current year?`,
+      message: current
+        ? `${current.name} will be closed and become read-only.`
+        : 'Attendance, fees and exams will use this year from now on.',
+      confirmLabel: 'Make current',
+    });
+    if (!ok) return;
     setError(null);
     try {
       await activate.mutateAsync(y.id);
@@ -349,6 +355,7 @@ function CopyStructureModal({
 // --- Classes & sections ---------------------------------------------------------------------------
 
 export function ClassesSectionsPage() {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const manage = can(PERMISSIONS.ACADEMICS_MANAGE);
   const { years, yearId, setYearId, year } = useYearSelection();
@@ -458,15 +465,19 @@ export function ClassesSectionsPage() {
                                 size="sm"
                                 variant="ghost"
                                 disabled={!s.studentCount}
-                                onClick={() =>
-                                  window.confirm(
-                                    `Number ${s.studentCount} students of ${c.class.name} ${s.name} alphabetically? Existing roll numbers will be replaced.`,
-                                  ) &&
-                                  run(
-                                    () => roll.mutateAsync({ sectionId: s.id, order: 'NAME' }),
-                                    `Roll numbers assigned for ${c.class.name} ${s.name}.`,
+                                onClick={async () => {
+                                  if (
+                                    await confirm({
+                                      title: `Number ${s.studentCount} students of ${c.class.name} ${s.name} alphabetically?`,
+                                      message: `Existing roll numbers will be replaced.`,
+                                      confirmLabel: 'Assign roll numbers',
+                                    })
                                   )
-                                }
+                                    void run(
+                                      () => roll.mutateAsync({ sectionId: s.id, order: 'NAME' }),
+                                      `Roll numbers assigned for ${c.class.name} ${s.name}.`,
+                                    );
+                                }}
                               >
                                 Roll numbers
                               </Button>
@@ -481,10 +492,16 @@ export function ClassesSectionsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() =>
-                                  window.confirm(`Delete ${c.class.name} ${s.name}?`) &&
-                                  run(() => del.mutateAsync(s.id), 'Section deleted.')
-                                }
+                                onClick={async () => {
+                                  if (
+                                    await confirm({
+                                      title: `Delete ${c.class.name} ${s.name}?`,
+                                      confirmLabel: 'Delete',
+                                      tone: 'danger',
+                                    })
+                                  )
+                                    void run(() => del.mutateAsync(s.id), 'Section deleted.');
+                                }}
                                 aria-label={`Delete section ${s.name}`}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -869,6 +886,7 @@ function SubjectEditor({ item, onClose }: { item: SubjectItem | null; onClose: (
 // --- Teacher assignments -----------------------------------------------------------------------
 
 export function TeacherAssignmentsPage() {
+  const confirm = useConfirm();
   const { can } = useAuth();
   const { years, yearId, setYearId, year } = useYearSelection();
   const list = useTeacherAssignments(yearId);
@@ -920,9 +938,16 @@ export function TeacherAssignmentsPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() =>
-                          window.confirm('Remove this assignment?') && del.mutate(a.id)
-                        }
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: 'Remove this assignment?',
+                              confirmLabel: 'Remove',
+                              tone: 'danger',
+                            })
+                          )
+                            void del.mutate(a.id);
+                        }}
                         aria-label="Remove assignment"
                       >
                         <Trash2 className="h-4 w-4" />

@@ -1,7 +1,9 @@
+import { CircleAlert, CircleCheck, CircleX, Inbox, Info, X, type LucideIcon } from 'lucide-react';
 import {
   forwardRef,
   useEffect,
   useId,
+  useRef,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -17,9 +19,11 @@ const cx = (...classes: (string | false | null | undefined)[]) => classes.filter
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 const buttonStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-navy text-white hover:bg-brand-navy-light',
-  secondary: 'border border-gray-300 bg-white text-ink hover:bg-gray-50',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
+  primary:
+    'bg-brand-navy text-white shadow-sm shadow-brand-navy/20 hover:bg-brand-navy-light hover:shadow-md hover:shadow-brand-navy/25',
+  secondary:
+    'border border-gray-300 bg-white text-ink shadow-sm hover:border-gray-400 hover:bg-gray-50',
+  danger: 'bg-red-600 text-white shadow-sm shadow-red-600/20 hover:bg-red-700 hover:shadow-md',
   ghost: 'text-brand-navy hover:bg-brand-gold-light',
 };
 
@@ -44,7 +48,7 @@ export function Button({
       type={type}
       disabled={disabled || loading}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-1 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         buttonStyles[variant],
         className,
@@ -94,7 +98,7 @@ export function Field({
 
 const controlClass = (invalid?: boolean) =>
   cx(
-    'block w-full rounded-md border bg-white px-3 py-2 text-sm text-ink placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:bg-gray-100',
+    'block w-full rounded-md border bg-white px-3 py-2 text-sm text-ink transition-shadow duration-150 placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:bg-gray-100',
     invalid
       ? 'border-red-500 focus:ring-red-200'
       : 'border-gray-300 focus:border-brand-navy focus:ring-brand-gold/40',
@@ -176,11 +180,15 @@ export function Spinner({ className = 'h-6 w-6' }: { className?: string }) {
 export function PageSpinner() {
   return (
     <div
-      className="flex min-h-[40vh] items-center justify-center text-brand-navy"
+      className="flex min-h-[40vh] animate-fade-in flex-col items-center justify-center gap-3 text-brand-navy"
       role="status"
       aria-label="Loading"
     >
-      <Spinner className="h-8 w-8" />
+      <span className="relative flex h-12 w-12 items-center justify-center">
+        <span className="absolute inset-0 animate-ping rounded-full bg-brand-gold/20" />
+        <Spinner className="h-8 w-8" />
+      </span>
+      <span className="text-xs font-medium text-ink-muted">Loading…</span>
     </div>
   );
 }
@@ -198,12 +206,17 @@ export function Alert({
     info: 'border-blue-200 bg-blue-50 text-blue-800',
     warning: 'border-amber-200 bg-amber-50 text-amber-900',
   }[tone];
+  const Icon = { error: CircleX, success: CircleCheck, info: Info, warning: CircleAlert }[tone];
   return (
     <div
       role={tone === 'error' ? 'alert' : 'status'}
-      className={cx('rounded-md border px-4 py-3 text-sm', styles)}
+      className={cx(
+        'flex animate-fade-up items-start gap-2.5 rounded-md border px-4 py-3 text-sm',
+        styles,
+      )}
     >
-      {children}
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -235,11 +248,25 @@ export function Badge({
   );
 }
 
-export function EmptyState({ title, description }: { title: string; description?: string }) {
+export function EmptyState({
+  title,
+  description,
+  icon: Icon = Inbox,
+  action,
+}: {
+  title: string;
+  description?: string;
+  icon?: LucideIcon;
+  action?: ReactNode;
+}) {
   return (
-    <div className="py-12 text-center">
+    <div className="flex animate-fade-in flex-col items-center px-4 py-12 text-center">
+      <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-gold-light to-brand-navy/5 text-brand-navy/60 ring-1 ring-brand-navy/5">
+        <Icon className="h-7 w-7" aria-hidden="true" />
+      </span>
       <p className="font-medium text-ink">{title}</p>
-      {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}
+      {description && <p className="mt-1 max-w-sm text-sm text-ink-muted">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -248,7 +275,12 @@ export function EmptyState({ title, description }: { title: string; description?
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cx('rounded-lg border border-gray-200 bg-white shadow-sm', className)}>
+    <div
+      className={cx(
+        'rounded-xl border border-gray-200/80 bg-white shadow-sm shadow-gray-200/50',
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -258,18 +290,32 @@ export function PageHeader({
   title,
   description,
   actions,
+  icon: Icon,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  /** Optional icon shown in a tile next to the title. */
+  icon?: LucideIcon;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-brand-navy">{title}</h1>
-        {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}
+      <div className="flex items-start gap-3">
+        {Icon && (
+          <span className="mt-0.5 hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy to-brand-navy-light text-brand-gold shadow-md shadow-brand-navy/20 sm:flex print:hidden">
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </span>
+        )}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-brand-navy">{title}</h1>
+          <span
+            className="mt-1.5 block h-1 w-10 rounded-full bg-gradient-to-r from-brand-gold to-brand-gold/30 print:hidden"
+            aria-hidden="true"
+          />
+          {description && <p className="mt-2 max-w-3xl text-sm text-ink-muted">{description}</p>}
+        </div>
       </div>
-      {actions && <div className="flex gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }
@@ -283,50 +329,106 @@ export function Modal({
   children,
   footer,
   size = 'md',
+  icon: Icon,
+  tone = 'navy',
+  description,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
-  children: ReactNode;
+  children?: ReactNode;
   footer?: ReactNode;
-  size?: 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Optional icon tile in the header. */
+  icon?: LucideIcon;
+  tone?: 'navy' | 'danger' | 'success' | 'gold';
+  /** Short line under the title. */
+  description?: string;
 }) {
   const titleId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  // Callers often pass a new onClose on every render; keep the latest without re-running the
+  // open/close effect (which would steal focus while typing).
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    // Keep the page behind still, and move focus into the dialog for keyboard users.
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const first = panel.current?.querySelector<HTMLElement>(
+      'input:not([type=hidden]):not([disabled]), select, textarea, [data-autofocus]',
+    );
+    (first ?? panel.current)?.focus({ preventScroll: true });
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+      previous?.focus?.({ preventScroll: true });
+    };
+  }, [open]);
 
   if (!open) return null;
+  const tones = {
+    navy: 'bg-brand-navy/10 text-brand-navy',
+    danger: 'bg-red-100 text-red-600',
+    success: 'bg-green-100 text-green-700',
+    gold: 'bg-brand-gold-light text-brand-gold-dark',
+  };
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-[10vh]">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[8vh]">
       <div
+        className="fixed inset-0 animate-fade-in bg-brand-navy-dark/50 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className={cx(
-          'relative w-full rounded-lg bg-white shadow-xl',
-          size === 'lg' ? 'max-w-2xl' : 'max-w-lg',
+          'relative w-full animate-scale-in rounded-2xl bg-white shadow-2xl shadow-brand-navy/20 ring-1 ring-black/5 focus:outline-none',
+          { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size],
         )}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-          <h2 id={titleId} className="text-lg font-semibold text-brand-navy">
-            {title}
-          </h2>
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+          <div className="flex items-start gap-3">
+            {Icon && (
+              <span
+                className={cx(
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                  tones[tone],
+                )}
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+            )}
+            <div>
+              <h2 id={titleId} className="text-lg font-semibold text-brand-navy">
+                {title}
+              </h2>
+              {description && <p className="mt-0.5 text-sm text-ink-muted">{description}</p>}
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="rounded p-1 text-ink-muted hover:bg-gray-100"
+            className="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-gray-100 hover:text-ink"
             aria-label="Close"
           >
-            ✕
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        {children != null && children !== false && <div className="px-5 py-4">{children}</div>}
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-gray-200 px-5 py-3">{footer}</div>
+          <div className="flex flex-wrap justify-end gap-2 rounded-b-2xl border-t border-gray-100 bg-gray-50/80 px-5 py-3">
+            {footer}
+          </div>
         )}
       </div>
     </div>

@@ -42,6 +42,7 @@ import {
   useSaveSalaryComponent,
 } from '../operations-api';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { useConfirm, usePrompt } from '@/lib/dialogs';
 
 const STATUS_TONE: Record<PayrollStatus, 'amber' | 'navy' | 'green'> = {
   DRAFT: 'amber',
@@ -146,6 +147,8 @@ export function PayrollRunsPage() {
 }
 
 export function PayrollRunPage() {
+  const prompt = usePrompt();
+  const confirm = useConfirm();
   const { id = '' } = useParams();
   const { can } = useAuth();
   const run = usePayrollRun(id);
@@ -189,25 +192,35 @@ export function PayrollRunPage() {
           {draft && can(PERMISSIONS.PAYROLL_MANAGE) && (
             <Button
               variant="secondary"
-              onClick={() =>
-                window.confirm('Delete this draft payroll?') &&
-                doAction({ kind: 'delete', runId: r.id }, '')
-              }
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: 'Delete this draft payroll?',
+                    confirmLabel: 'Delete',
+                    tone: 'danger',
+                  })
+                )
+                  void doAction({ kind: 'delete', runId: r.id }, '');
+              }}
             >
               Delete draft
             </Button>
           )}
           {approve && draft && (
             <Button
-              onClick={() =>
-                window.confirm(
-                  `Approve payroll for ${monthName(r.month)}? It can no longer be edited unless reopened.`,
-                ) &&
-                doAction(
-                  { kind: 'approve', runId: r.id },
-                  'Payroll approved. Staff can now see their payslips.',
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: `Approve payroll for ${monthName(r.month)}?`,
+                    message: `It can no longer be edited unless reopened.`,
+                    confirmLabel: 'Approve',
+                  })
                 )
-              }
+                  void doAction(
+                    { kind: 'approve', runId: r.id },
+                    'Payroll approved. Staff can now see their payslips.',
+                  );
+              }}
             >
               Approve
             </Button>
@@ -216,8 +229,14 @@ export function PayrollRunPage() {
             <>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  const reason = window.prompt('Why reopen this payroll?');
+                onClick={async () => {
+                  const reason = await prompt({
+                    title: 'Reopen payroll',
+                    message:
+                      'The month goes back to draft so entries can be corrected. Staff stop seeing these payslips until it is approved again.',
+                    label: 'Reason for reopening',
+                    confirmLabel: 'Reopen',
+                  });
                   if (reason)
                     void doAction(
                       { kind: 'reopen', runId: r.id, reason },
@@ -228,10 +247,16 @@ export function PayrollRunPage() {
                 Reopen
               </Button>
               <Button
-                onClick={() =>
-                  window.confirm('Mark as paid? A paid payroll is final.') &&
-                  doAction({ kind: 'pay', runId: r.id }, 'Payroll marked as paid.')
-                }
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: 'Mark as paid?',
+                      message: 'A paid payroll is final.',
+                      confirmLabel: 'Mark as paid',
+                    })
+                  )
+                    void doAction({ kind: 'pay', runId: r.id }, 'Payroll marked as paid.');
+                }}
               >
                 Mark as paid
               </Button>
@@ -302,10 +327,19 @@ export function PayrollRunPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() =>
-                          window.confirm(`Remove ${rec.employee.fullName} from this payroll?`) &&
-                          doAction({ kind: 'remove', runId: r.id, recordId: rec.id }, 'Removed.')
-                        }
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: `Remove ${rec.employee.fullName} from this payroll?`,
+                              confirmLabel: 'Remove',
+                              tone: 'danger',
+                            })
+                          )
+                            void doAction(
+                              { kind: 'remove', runId: r.id, recordId: rec.id },
+                              'Removed.',
+                            );
+                        }}
                       >
                         Remove
                       </Button>
