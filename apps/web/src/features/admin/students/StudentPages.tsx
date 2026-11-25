@@ -9,6 +9,7 @@ import {
   STUDENT_STATUS_LABELS,
   STUDENT_STATUSES,
   createStudentSchema,
+  formatRupees,
   type CreateStudentInput,
   type EnrolmentHistoryItem,
   type GuardianItem,
@@ -45,6 +46,7 @@ import { StudentFeeCard } from '@/features/fees/components/StudentFeeCard';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { YearPicker } from '../components/YearPicker';
 import {
+  useAdmissionYears,
   useCreateStudent,
   usePrivateImage,
   usePromote,
@@ -60,6 +62,19 @@ import { usePagination } from '@/lib/use-pagination';
 import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', WITHDRAWN: 'red' } as const;
+
+const MONTHS = Array.from({ length: 12 }, (_, i) =>
+  new Intl.DateTimeFormat('en-IN', { month: 'long', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(2000, i, 1)),
+  ),
+);
+/** "2026-04-12" → "Apr 2026". */
+const admittedLabel = (day: string | null) =>
+  day
+    ? new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
+        new Date(`${day}T00:00:00Z`),
+      )
+    : '—';
 const ENROLMENT_TONE = {
   ACTIVE: 'green',
   PROMOTED: 'navy',
@@ -80,6 +95,12 @@ export function StudentsPage() {
   const [sectionId, setSectionId] = useState('');
   const [status, setStatus] = useState<StudentStatus | ''>('ACTIVE');
   const [notEnrolled, setNotEnrolled] = useState(false);
+  const [admissionYear, setAdmissionYear] = useState('');
+  const [admissionMonth, setAdmissionMonth] = useState('');
+  const [pendingFees, setPendingFees] = useState<'' | 'YES' | 'NO'>('');
+  const { can } = useAuth();
+  const seeFees = can(PERMISSIONS.FEES_READ);
+  const admissionYears = useAdmissionYears();
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const list = useStudents({
     search: useDebouncedValue(search),
@@ -88,6 +109,9 @@ export function StudentsPage() {
     sectionId,
     status: status || undefined,
     notEnrolled: notEnrolled || undefined,
+    admissionYear: admissionYear ? Number(admissionYear) : undefined,
+    admissionMonth: admissionMonth ? Number(admissionMonth) : undefined,
+    pendingFees: (seeFees && pendingFees) || undefined,
     page,
     pageSize,
   });
@@ -114,6 +138,9 @@ export function StudentsPage() {
                 sectionId: sectionId || undefined,
                 status: status || undefined,
                 search: search || undefined,
+                admissionYear: admissionYear || undefined,
+                admissionMonth: admissionMonth || undefined,
+                pendingFees: (seeFees && pendingFees) || undefined,
               }}
             />
             <PermissionGate permissions={[PERMISSIONS.STUDENTS_MANAGE]}>
@@ -178,6 +205,44 @@ export function StudentsPage() {
               </option>
             ))}
           </Select>
+          <Select
+            className="max-w-[180px]"
+            value={admissionYear}
+            onChange={(e) => reset(setAdmissionYear)(e.target.value)}
+            aria-label="Filter by admission year"
+          >
+            <option value="">Admitted: any year</option>
+            {admissionYears.data?.map((y) => (
+              <option key={y} value={y}>
+                Admitted {y}
+              </option>
+            ))}
+          </Select>
+          <Select
+            className="max-w-[150px]"
+            value={admissionMonth}
+            onChange={(e) => reset(setAdmissionMonth)(e.target.value)}
+            aria-label="Filter by admission month"
+          >
+            <option value="">Any month</option>
+            {MONTHS.map((m, i) => (
+              <option key={m} value={i + 1}>
+                {m}
+              </option>
+            ))}
+          </Select>
+          {seeFees && (
+            <Select
+              className="max-w-[170px]"
+              value={pendingFees}
+              onChange={(e) => reset(setPendingFees)(e.target.value as '' | 'YES' | 'NO')}
+              aria-label="Filter by pending fees"
+            >
+              <option value="">Fees: all</option>
+              <option value="YES">Fees pending</option>
+              <option value="NO">No fees pending</option>
+            </Select>
+          )}
           <Checkbox
             label="Not enrolled this year"
             checked={notEnrolled}
@@ -194,7 +259,8 @@ export function StudentsPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">Student</th>
                 <th className="px-4 py-3 font-medium">Class</th>
-                <th className="px-4 py-3 font-medium">Roll</th>
+                <th className="px-4 py-3 font-medium">Admitted</th>
+                {seeFees && <th className="px-4 py-3 text-right font-medium">Pending fees</th>}
                 <th className="px-4 py-3 font-medium">Parent</th>
                 <th className="px-4 py-3 font-medium">Status</th>
               </tr>
@@ -223,7 +289,18 @@ export function StudentsPage() {
                       <span className="text-amber-700">Not enrolled</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-ink-muted">{s.enrolment?.rollNumber ?? '—'}</td>
+                  <td className="px-4 py-3 text-ink-muted">{admittedLabel(s.admissionDate)}</td>
+                  {seeFees && (
+                    <td className="px-4 py-3 text-right">
+                      {s.pendingFees ? (
+                        <span className="font-medium text-red-700">
+                          {formatRupees(s.pendingFees)}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700">Nil</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-ink-muted">
                     {s.primaryGuardian
                       ? `${s.primaryGuardian.fullName} · ${s.primaryGuardian.phone}`

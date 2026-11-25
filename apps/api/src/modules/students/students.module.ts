@@ -66,8 +66,18 @@ export class StudentsController {
 
   @Get()
   @RequirePermissions(PERMISSIONS.STUDENTS_READ)
-  list(@Query({ schema: listStudentsQuerySchema }) query: ListStudentsQuery) {
-    return this.students.list(query);
+  list(
+    @Query({ schema: listStudentsQuerySchema }) query: ListStudentsQuery,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.students.list(query, { withFees: user.permissions.has(PERMISSIONS.FEES_READ) });
+  }
+
+  /** Calendar years students were admitted in, for the list filter. */
+  @Get('admission-years')
+  @RequirePermissions(PERMISSIONS.STUDENTS_READ)
+  admissionYears() {
+    return this.students.admissionYears();
   }
 
   @Get(':id')

@@ -17,6 +17,9 @@ model Employee {
   employmentType String?   @map("employment_type") @db.VarChar(30)
   /// SQL: CHECK (status IN ('ACTIVE','INACTIVE','LEFT'))
   status         String    @default("ACTIVE") @db.VarChar(20)
+  /// Driving licence (drivers). Checked before a driver is put on a vehicle.
+  licenceNumber  String?   @map("licence_number") @db.VarChar(40)
+  licenceExpiry  DateTime? @map("licence_expiry") @db.Date
   userId         String?   @unique @map("user_id") @db.Uuid
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -27,8 +30,9 @@ model Employee {
   assignments      TeacherAssignment[]
   leaveRequests    LeaveRequest[]
   timetableEntries TimetableEntry[]
-  routesDriven     TransportRoute[]       @relation("RouteDriver")
-  routesAttended   TransportRoute[]       @relation("RouteAttendant")
+  vehiclesDriven   Vehicle[]              @relation("VehicleDriver")
+  vehiclesCrewed   Vehicle[]              @relation("VehicleConductor")
+  vehicleServices  VehicleServiceStaff[]
   meetings         ParentTeacherMeeting[]
   payrollRecords   PayrollRecord[]
 

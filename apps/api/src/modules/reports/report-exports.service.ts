@@ -18,11 +18,13 @@ import {
   MAX_EXPORT_ROWS,
   PAYMENT_MODE_LABELS,
   PAYMENT_STATUS_LABELS,
+  PERMISSIONS,
   REPORT_EXPORTS,
   STUDENT_STATUSES,
   STUDENT_STATUS_LABELS,
   type Paginated,
   type ReportExportKey,
+  type StudentListItem,
 } from '@school/shared';
 import { z } from 'zod';
 import type { RequestUser } from '../../common/http/request-user.js';
@@ -115,10 +117,14 @@ export class ReportExportsService {
         sectionId: uuid.optional(),
         status: z.enum(STUDENT_STATUSES).optional(),
         search: z.string().max(100).optional(),
+        admissionYear: z.coerce.number().int().min(1990).max(2100).optional(),
+        admissionMonth: z.coerce.number().int().min(1).max(12).optional(),
+        pendingFees: z.enum(['YES', 'NO']).optional(),
       }),
-      build: async (p) => {
+      build: async (p, actor) => {
+        const withFees = actor.permissions.has(PERMISSIONS.FEES_READ);
         const rows = await allPages((page, pageSize) =>
-          this.students.list({ ...p, page, pageSize }),
+          this.students.list({ ...p, page, pageSize }, { withFees }),
         );
         return table(
           'Students',
@@ -134,6 +140,16 @@ export class ReportExportsService {
             { header: 'Status', value: (r) => STUDENT_STATUS_LABELS[r.status] },
             { header: 'Guardian', value: (r) => r.primaryGuardian?.fullName ?? null, width: 24 },
             { header: 'Guardian phone', value: (r) => r.primaryGuardian?.phone ?? null, width: 16 },
+            { header: 'Admitted on', value: (r) => r.admissionDate },
+            ...(withFees
+              ? [
+                  {
+                    header: 'Pending fees (₹)',
+                    value: (r: StudentListItem) => r.pendingFees,
+                    numFmt: '#,##0.00',
+                  },
+                ]
+              : []),
           ],
           rows,
         );
@@ -177,6 +193,10 @@ export class ReportExportsService {
       params: z.object({
         status: z.enum(EMPLOYEE_STATUSES).optional(),
         department: z.string().max(100).optional(),
+        onLeave: z
+          .enum(['true', 'false'])
+          .optional()
+          .transform((v) => v === 'true'),
       }),
       build: async (p) => {
         const rows = await allPages((page, pageSize) =>
@@ -194,6 +214,11 @@ export class ReportExportsService {
             { header: 'Email', value: (r) => r.email, width: 28 },
             { header: 'Employment', value: (r) => r.employmentType },
             { header: 'Status', value: (r) => r.status },
+            {
+              header: 'On leave today',
+              value: (r) => (r.onLeave ? `${r.onLeave.startDate} to ${r.onLeave.endDate}` : null),
+              width: 24,
+            },
             {
               header: 'Login',
               value: (r) => (r.user ? (r.user.email ?? r.user.phone) : null),

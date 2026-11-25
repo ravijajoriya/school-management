@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { CircleAlert, CircleCheck, CircleX, Inbox, Info, X, type LucideIcon } from 'lucide-react';
 import {
   forwardRef,
@@ -8,6 +9,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
 } from 'react';
 
 /* Small, dependency-free UI kit styled with the brand tokens from index.css. */
@@ -110,6 +112,20 @@ export const Input = forwardRef<
 >(function Input({ invalid, className, ...props }, ref) {
   return (
     <input
+      ref={ref}
+      aria-invalid={invalid || undefined}
+      className={cx(controlClass(invalid), className)}
+      {...props}
+    />
+  );
+});
+
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }
+>(function Textarea({ invalid, className, ...props }, ref) {
+  return (
+    <textarea
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cx(controlClass(invalid), className)}
@@ -379,7 +395,9 @@ export function Modal({
     success: 'bg-green-100 text-green-700',
     gold: 'bg-brand-gold-light text-brand-gold-dark',
   };
-  return (
+  // Rendered on <body>: a transformed ancestor (the page fade-in) would otherwise become the
+  // containing block for `position: fixed`, clipping the dialog to the page content.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[8vh]">
       <div
         className="fixed inset-0 animate-fade-in bg-brand-navy-dark/50 backdrop-blur-[2px]"
@@ -431,7 +449,8 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -80,6 +80,21 @@ const blankToNull = <T extends z.ZodType>(schema: T) =>
     .optional()
     .transform((v) => (v === '' ? null : v));
 
+/** Indian driving licence number, e.g. RJ14 20190012345. */
+const licenceNumber = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .transform((v) => v.replace(/\s+/g, ' '))
+  .pipe(
+    z
+      .string()
+      .regex(
+        /^[A-Z0-9][A-Z0-9 /-]{5,39}$/,
+        'Enter the licence number as printed (letters and digits)',
+      ),
+  );
+
 const employeeCode = z
   .string()
   .trim()
@@ -99,6 +114,9 @@ export const createEmployeeSchema = z.object({
   department: blankToUndefined(z.string().trim().max(100)),
   employmentType: blankToUndefined(z.enum(EMPLOYMENT_TYPES)),
   status: z.enum(EMPLOYEE_STATUSES).default('ACTIVE'),
+  /** Drivers: needed before they can be put on a vehicle. */
+  licenceNumber: blankToUndefined(licenceNumber),
+  licenceExpiry: blankToUndefined(z.iso.date('Enter a valid date')),
 });
 export type CreateEmployeeInput = z.input<typeof createEmployeeSchema>;
 export type CreateEmployeeData = z.output<typeof createEmployeeSchema>;
@@ -115,6 +133,8 @@ export const updateEmployeeSchema = z.object({
   department: blankToNull(z.string().trim().max(100)),
   employmentType: blankToNull(z.enum(EMPLOYMENT_TYPES)),
   status: z.enum(EMPLOYEE_STATUSES).optional(),
+  licenceNumber: blankToNull(licenceNumber),
+  licenceExpiry: blankToNull(z.iso.date('Enter a valid date')),
 });
 export type UpdateEmployeeInput = z.input<typeof updateEmployeeSchema>;
 export type UpdateEmployeeData = z.output<typeof updateEmployeeSchema>;
@@ -123,6 +143,11 @@ export const listEmployeesQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),
   status: z.enum(EMPLOYEE_STATUSES).optional(),
   department: z.string().trim().max(100).optional(),
+  /** Only staff on approved leave today. */
+  onLeave: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((v) => v === true || v === 'true')
+    .optional(),
 });
 export type ListEmployeesQuery = z.infer<typeof listEmployeesQuerySchema>;
 
@@ -147,6 +172,10 @@ export interface EmployeeListItem {
   employmentType: EmploymentType | null;
   status: EmployeeStatus;
   user: { id: string; email: string | null; phone: string | null; status: string } | null;
+  licenceNumber: string | null;
+  licenceExpiry: string | null;
+  /** Approved leave covering today (listed first in the staff list). */
+  onLeave: { leaveType: string; startDate: string; endDate: string } | null;
 }
 
 export interface EmployeeDetail extends EmployeeListItem {

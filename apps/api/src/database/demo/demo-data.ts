@@ -61,6 +61,8 @@ export interface DemoManifest {
   examIds: string[];
   /** Added with Phase 7. */
   vehicleIds: string[];
+  /** Added with migration 026 (older manifests may lack it). */
+  vehicleServiceIds?: string[];
   routeIds: string[];
   complaintIds: string[];
   inventoryCategoryIds: string[];
@@ -111,6 +113,7 @@ const EMPTY_LISTS = {
   gradingScaleIds: [],
   examIds: [],
   vehicleIds: [],
+  vehicleServiceIds: [],
   routeIds: [],
   complaintIds: [],
   inventoryCategoryIds: [],
@@ -218,6 +221,29 @@ const STAFF: StaffDef[] = [
     last: 'Choudhary',
     designation: 'Accountant',
     department: 'Office',
+  },
+  // Transport crew: each vehicle has a driver (with licence) and a conductor.
+  {
+    key: 'bhanwar',
+    first: 'Bhanwar',
+    last: 'Singh',
+    designation: 'Driver',
+    department: 'Transport',
+  },
+  { key: 'mohan', first: 'Mohan', last: 'Lal', designation: 'Driver', department: 'Transport' },
+  {
+    key: 'gopal',
+    first: 'Gopal',
+    last: 'Saini',
+    designation: 'Conductor',
+    department: 'Transport',
+  },
+  {
+    key: 'suresh',
+    first: 'Suresh',
+    last: 'Meghwal',
+    designation: 'Conductor',
+    department: 'Transport',
   },
 ];
 
@@ -513,6 +539,7 @@ export async function seedDemoData(
     gradingScaleIds: [],
     examIds: [],
     vehicleIds: [],
+    vehicleServiceIds: [],
     routeIds: [],
     complaintIds: [],
     inventoryCategoryIds: [],
@@ -1868,6 +1895,10 @@ interface OperationsContext {
 const DEMO_PAY: Record<string, { basic: number; da: number; hra: number }> = {
   rekha: { basic: 52000, da: 9000, hra: 7800 },
   ramesh: { basic: 24000, da: 4000, hra: 3600 },
+  bhanwar: { basic: 18000, da: 3000, hra: 2700 },
+  mohan: { basic: 17000, da: 2800, hra: 2500 },
+  gopal: { basic: 12000, da: 2000, hra: 1800 },
+  suresh: { basic: 12000, da: 2000, hra: 1800 },
 };
 const DEFAULT_PAY = { basic: 32000, da: 5500, hra: 4800 };
 
@@ -1875,7 +1906,16 @@ async function seedOperations(tx: Tx, c: OperationsContext) {
   const { manifest, counts, today } = c;
   const riders = c.enrolments.filter((e) => !e.exitDate);
 
-  // Transport: two buses and two routes; a dozen students ride.
+  // Transport: a bus and a van, each with a driver and a conductor; a dozen students ride.
+  // Drivers' licences (Mohan's runs out soon, to show the warning).
+  await tx.employee.update({
+    where: { id: c.employeeId.bhanwar },
+    data: { licenceNumber: 'RJ14 20110034567', licenceExpiry: dayToDate(addDays(today, 900)) },
+  });
+  await tx.employee.update({
+    where: { id: c.employeeId.mohan },
+    data: { licenceNumber: 'RJ14 20150078912', licenceExpiry: dayToDate(addDays(today, 20)) },
+  });
   const bus1 = await tx.vehicle.create({
     data: {
       registrationNumber: 'DEMO RJ14 PB 4521',
@@ -1883,6 +1923,8 @@ async function seedOperations(tx: Tx, c: OperationsContext) {
       capacity: 40,
       insuranceExpiry: dayToDate(addDays(today, 200)),
       permitExpiry: dayToDate(addDays(today, 18)),
+      driverEmployeeId: c.employeeId.bhanwar,
+      conductorEmployeeId: c.employeeId.gopal,
     },
   });
   const van = await tx.vehicle.create({
@@ -1892,9 +1934,88 @@ async function seedOperations(tx: Tx, c: OperationsContext) {
       capacity: 12,
       insuranceExpiry: dayToDate(addDays(today, 320)),
       permitExpiry: dayToDate(addDays(today, 280)),
+      driverEmployeeId: c.employeeId.mohan,
+      conductorEmployeeId: c.employeeId.suresh,
     },
   });
   manifest.vehicleIds.push(bus1.id, van.id);
+
+  // Service history: regular services every ~5,000 km, with parts and who took the vehicle.
+  const serviceDefs = [
+    {
+      vehicleId: bus1.id,
+      days: -170,
+      km: 38_250,
+      next: 43_250,
+      garage: 'Shree Ram Motors, Sitapura',
+      labour: '1800.00',
+      invoice: 'SRM/2041',
+      staff: ['bhanwar'],
+      parts: [
+        ['Engine oil (15W-40)', 2, '3600.00'],
+        ['Oil filter', 1, '650.00'],
+        ['Air filter', 1, '1150.00'],
+      ],
+    },
+    {
+      vehicleId: bus1.id,
+      days: -45,
+      km: 43_410,
+      next: 48_410,
+      garage: 'Shree Ram Motors, Sitapura',
+      labour: '2400.00',
+      invoice: 'SRM/2318',
+      staff: ['bhanwar', 'gopal'],
+      parts: [
+        ['Engine oil (15W-40)', 2, '3700.00'],
+        ['Oil filter', 1, '650.00'],
+        ['Front brake pads (set)', 1, '4200.00'],
+        ['Wiper blades', 2, '700.00'],
+      ],
+      notes: 'Brakes were squeaking; pads replaced. Tyres rotated.',
+    },
+    {
+      vehicleId: van.id,
+      days: -60,
+      km: 21_900,
+      next: 26_900,
+      nextDays: 3,
+      garage: 'Jaipur Auto Care, Mansarovar',
+      labour: '900.00',
+      invoice: 'JAC-778',
+      staff: ['mohan'],
+      parts: [
+        ['Engine oil (5W-30)', 1, '1900.00'],
+        ['Oil filter', 1, '420.00'],
+        ['Battery (65 Ah)', 1, '5600.00'],
+      ],
+    },
+  ] as const;
+  for (const sv of serviceDefs) {
+    const svc = await tx.vehicleService.create({
+      data: {
+        vehicleId: sv.vehicleId,
+        serviceDate: dayToDate(addDays(today, sv.days)),
+        garageName: sv.garage,
+        odometerKm: sv.km,
+        nextServiceKm: sv.next,
+        nextServiceDate:
+          'nextDays' in sv
+            ? dayToDate(addDays(today, sv.nextDays))
+            : dayToDate(addDays(today, sv.days + 180)),
+        labourCost: sv.labour,
+        invoiceNumber: sv.invoice,
+        notes: 'notes' in sv ? sv.notes : null,
+        createdBy: c.adminId,
+        parts: {
+          create: sv.parts.map(([partName, quantity, cost]) => ({ partName, quantity, cost })),
+        },
+        staff: { create: sv.staff.map((k) => ({ employeeId: c.employeeId[k] })) },
+      },
+    });
+    (manifest.vehicleServiceIds ??= []).push(svc.id);
+  }
+  counts.vehicleServices = serviceDefs.length;
   const toTime = (t: string) => new Date(`1970-01-01T${t}:00Z`);
   const routeDefs = [
     {
@@ -1921,7 +2042,6 @@ async function seedOperations(tx: Tx, c: OperationsContext) {
       data: {
         name: def.name,
         vehicleId: def.vehicleId,
-        attendantEmployeeId: c.employeeId.mahesh,
         stops: {
           create: def.stops.map(([name, pick, drop], i) => ({
             name,
@@ -2306,14 +2426,25 @@ export async function clearDemoData(
       'routes',
       (await tx.transportRoute.deleteMany({ where: { id: { in: m.routeIds } } })).count,
     );
-    await tx.transportRoute.updateMany({
-      where: {
-        OR: [
-          { driverEmployeeId: { in: m.employeeIds } },
-          { attendantEmployeeId: { in: m.employeeIds } },
-        ],
-      },
-      data: { driverEmployeeId: null, attendantEmployeeId: null },
+    count(
+      'vehicle services',
+      (
+        await tx.vehicleService.deleteMany({
+          where: {
+            OR: [{ id: { in: m.vehicleServiceIds ?? [] } }, { vehicleId: { in: m.vehicleIds } }],
+          },
+        })
+      ).count,
+    );
+    await tx.vehicleServiceStaff.deleteMany({ where: { employeeId: { in: m.employeeIds } } });
+    // A school vehicle crewed by demo staff loses its crew and is set inactive until re-crewed.
+    await tx.vehicle.updateMany({
+      where: { id: { notIn: m.vehicleIds }, driverEmployeeId: { in: m.employeeIds } },
+      data: { driverEmployeeId: null, status: 'INACTIVE' },
+    });
+    await tx.vehicle.updateMany({
+      where: { id: { notIn: m.vehicleIds }, conductorEmployeeId: { in: m.employeeIds } },
+      data: { conductorEmployeeId: null, status: 'INACTIVE' },
     });
     await tx.transportRoute.updateMany({
       where: { vehicleId: { in: m.vehicleIds } },

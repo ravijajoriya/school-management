@@ -5,21 +5,24 @@ import {
   EMPLOYEE_STATUSES,
   EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPES,
+  LEAVE_TYPE_LABELS,
   PERMISSIONS,
   createEmployeeSchema,
   type CreateEmployeeInput,
   type EmployeeDetail,
   type EmployeeStatus,
+  type LeaveType,
 } from '@school/shared';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarOff, IdCard } from 'lucide-react';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   Alert,
   Badge,
   Button,
   Card,
+  Checkbox,
   EmptyState,
   Field,
   Input,
@@ -51,15 +54,22 @@ import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', LEFT: 'red' } as const;
 
+const leaveLabel = (l: { leaveType: string; endDate: string }) => {
+  const type = LEAVE_TYPE_LABELS[l.leaveType as LeaveType] ?? l.leaveType;
+  return `${/leave/i.test(type) ? type : `${type} leave`} until ${formatDate(l.endDate)}`;
+};
+
 export function EmployeesPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<EmployeeStatus | ''>('ACTIVE');
+  const [onLeave, setOnLeave] = useState(false);
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const [adding, setAdding] = useState(false);
   const list = useEmployees({
     search: useDebouncedValue(search),
     status: status || undefined,
+    onLeave: onLeave || undefined,
     page,
     pageSize,
   });
@@ -67,7 +77,7 @@ export function EmployeesPage() {
     <div>
       <PageHeader
         title="Staff"
-        description="Teaching and non-teaching staff records."
+        description="Teaching and non-teaching staff records. Staff on leave today are listed first."
         actions={
           <PermissionGate permissions={[PERMISSIONS.EMPLOYEES_MANAGE]}>
             <Button onClick={() => setAdding(true)}>Add staff member</Button>
@@ -75,7 +85,7 @@ export function EmployeesPage() {
         }
       />
       <Card>
-        <div className="flex flex-wrap gap-3 border-b border-gray-200 p-4">
+        <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
           <Input
             type="search"
             placeholder="Search name, code, designation, phone"
@@ -103,11 +113,22 @@ export function EmployeesPage() {
               </option>
             ))}
           </Select>
+          <Checkbox
+            label="On leave today"
+            checked={onLeave}
+            onChange={(e) => {
+              setOnLeave(e.target.checked);
+              setPage(1);
+            }}
+          />
         </div>
         {list.isLoading ? (
           <PageSpinner />
         ) : !list.data?.items.length ? (
-          <EmptyState title="No staff found" />
+          <EmptyState
+            icon={onLeave ? CalendarOff : undefined}
+            title={onLeave ? 'Nobody is on leave today' : 'No staff found'}
+          />
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
@@ -123,7 +144,7 @@ export function EmployeesPage() {
               {list.data.items.map((e) => (
                 <tr
                   key={e.id}
-                  className="cursor-pointer hover:bg-surface/60"
+                  className={`cursor-pointer hover:bg-surface/60 ${e.onLeave ? 'bg-amber-50/60' : ''}`}
                   onClick={() => navigate(`/admin/staff/${e.id}`)}
                 >
                   <td className="px-4 py-3">
@@ -145,7 +166,20 @@ export function EmployeesPage() {
                     {e.user ? <Badge tone="green">Yes</Badge> : <Badge tone="gray">No</Badge>}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge tone={STATUS_TONE[e.status]}>{EMPLOYEE_STATUS_LABELS[e.status]}</Badge>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Badge tone={STATUS_TONE[e.status]}>{EMPLOYEE_STATUS_LABELS[e.status]}</Badge>
+                      {e.onLeave && (
+                        <span title={leaveLabel(e.onLeave)}>
+                          <Badge tone="amber">
+                            <CalendarOff className="mr-1 h-3 w-3" aria-hidden="true" />
+                            On leave
+                          </Badge>
+                        </span>
+                      )}
+                    </div>
+                    {e.onLeave && (
+                      <div className="mt-0.5 text-xs text-ink-muted">{leaveLabel(e.onLeave)}</div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -184,7 +218,7 @@ function EmployeeFormModal({
 }) {
   const save = useSaveEmployee();
   const [serverError, setServerError] = useState<string | null>(null);
-  const { register, handleSubmit, setError, formState } = useForm<CreateEmployeeInput>({
+  const { register, control, handleSubmit, setError, formState } = useForm<CreateEmployeeInput>({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
       employeeCode: employee?.employeeCode ?? '',
@@ -198,9 +232,13 @@ function EmployeeFormModal({
       department: employee?.department ?? '',
       employmentType: employee?.employmentType ?? '',
       status: employee?.status ?? 'ACTIVE',
+      licenceNumber: employee?.licenceNumber ?? '',
+      licenceExpiry: employee?.licenceExpiry ?? '',
     },
   });
   const { errors } = formState;
+  const designation = useWatch({ control, name: 'designation' }) ?? '';
+  const showLicence = /driver/i.test(designation) || !!employee?.licenceNumber;
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     try {
@@ -214,6 +252,8 @@ function EmployeeFormModal({
             dateOfBirth: nullable(values.dateOfBirth as string),
             department: nullable(values.department as string),
             employmentType: nullable(values.employmentType as string),
+            licenceNumber: nullable(values.licenceNumber as string),
+            licenceExpiry: nullable(values.licenceExpiry as string),
           }
         : values;
       const saved = await save.mutateAsync({
@@ -302,6 +342,37 @@ function EmployeeFormModal({
             </Select>
           </Field>
         </div>
+        {showLicence && (
+          <fieldset className="rounded-xl border border-gray-200 p-4">
+            <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-brand-navy">
+              <IdCard className="h-4 w-4" aria-hidden="true" /> Driving licence
+            </legend>
+            <p className="mb-3 text-xs text-ink-muted">
+              Needed before a driver can be put on a vehicle. A licence expiring within 30 days is
+              flagged on the Vehicles page.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Licence number"
+                htmlFor="e-licence"
+                error={errors.licenceNumber?.message}
+              >
+                <Input
+                  id="e-licence"
+                  placeholder="RJ14 20190012345"
+                  {...register('licenceNumber')}
+                />
+              </Field>
+              <Field
+                label="Valid until"
+                htmlFor="e-licence-exp"
+                error={errors.licenceExpiry?.message}
+              >
+                <Input id="e-licence-exp" type="date" {...register('licenceExpiry')} />
+              </Field>
+            </div>
+          </fieldset>
+        )}
       </form>
     </Modal>
   );
@@ -356,6 +427,15 @@ export function EmployeeDetailPage() {
                 ['Phone', e.phone ?? '—'],
                 ['Email', e.email ?? '—'],
                 ['Date of birth', formatDate(e.dateOfBirth)],
+                ...(e.licenceNumber
+                  ? [
+                      [
+                        'Driving licence',
+                        `${e.licenceNumber} · valid until ${formatDate(e.licenceExpiry)}`,
+                      ],
+                    ]
+                  : []),
+                ...(e.onLeave ? [['Today', leaveLabel(e.onLeave)]] : []),
               ].map(([k, v]) => (
                 <div key={k as string}>
                   <dt className="text-ink-muted">{k}</dt>

@@ -176,6 +176,11 @@ export const listStudentsQuerySchema = paginationQuerySchema.extend({
     .union([z.boolean(), z.enum(['true', 'false'])])
     .transform((v) => v === true || v === 'true')
     .optional(),
+  /** Calendar year / month (1–12) of admission (the student's first enrolment). */
+  admissionYear: z.coerce.number().int().min(1990).max(2100).optional(),
+  admissionMonth: z.coerce.number().int().min(1).max(12).optional(),
+  /** YES = owes fees due up to today; NO = nothing due. Needs fees.read. */
+  pendingFees: z.enum(['YES', 'NO']).optional(),
 });
 export type ListStudentsQuery = z.infer<typeof listStudentsQuerySchema>;
 
@@ -203,6 +208,13 @@ export interface StudentListItem {
   primaryGuardian: { fullName: string; relationship: string; phone: string } | null;
   /** Enrolment in the selected (or active) year. */
   enrolment: EnrolmentSummary | null;
+  /** Date of the student's first enrolment (YYYY-MM-DD). */
+  admissionDate: string | null;
+  /**
+   * Unpaid balance of dues with a due date up to today (or no due date), across all years.
+   * Null when the user can't see fees.
+   */
+  pendingFees: number | null;
 }
 
 export interface GuardianItem {
@@ -224,7 +236,7 @@ export interface EnrolmentHistoryItem extends EnrolmentSummary {
   createdAt: string;
 }
 
-export interface StudentDetail extends Omit<StudentListItem, 'enrolment'> {
+export interface StudentDetail extends Omit<StudentListItem, 'enrolment' | 'pendingFees'> {
   bloodGroup: string | null;
   addressLine1: string | null;
   addressLine2: string | null;

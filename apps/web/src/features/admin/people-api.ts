@@ -262,7 +262,7 @@ export function useSaveEmployee() {
       id
         ? (await apiClient.patch<EmployeeListItem>(`/employees/${id}`, input)).data
         : (await apiClient.post<EmployeeListItem>('/employees', input)).data,
-    onSuccess: () => refresh('employees', 'employee'),
+    onSuccess: () => refresh('employees', 'employee', 'transport'),
   });
 }
 
@@ -282,7 +282,7 @@ export function useLinkEmployeeUser() {
   return useMutation({
     mutationFn: async ({ id, userId }: { id: string; userId: string | null }) =>
       (await apiClient.patch<EmployeeDetail>(`/employees/${id}/user`, { userId })).data,
-    onSuccess: () => refresh('employees', 'employee'),
+    onSuccess: () => refresh('employees', 'employee', 'transport'),
   });
 }
 
@@ -296,6 +296,14 @@ export function useStudents(query: Partial<ListStudentsQuery>) {
     placeholderData: keepPreviousData,
   });
 }
+
+/** Calendar years students were admitted in (newest first). */
+export const useAdmissionYears = () =>
+  useQuery({
+    queryKey: ['students', 'admission-years'],
+    queryFn: async () => (await apiClient.get<number[]>('/students/admission-years')).data,
+    staleTime: 5 * 60_000,
+  });
 
 export function useStudent(id: string) {
   return useQuery({

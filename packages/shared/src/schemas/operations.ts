@@ -24,28 +24,68 @@ const optionalUuid = uuidSchema
 export const VEHICLE_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
 export type VehicleStatus = (typeof VEHICLE_STATUSES)[number];
 
-export const saveVehicleSchema = z.object({
-  registrationNumber: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .transform((v) => v.replace(/\s+/g, ' '))
-    .pipe(z.string().min(4, 'Enter the registration number').max(30)),
-  vehicleType: optionalText(50),
-  capacity: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(200)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  insuranceExpiry: optionalDate,
-  permitExpiry: optionalDate,
-  status: z.enum(VEHICLE_STATUSES).default('ACTIVE'),
-  notes: optionalText(1000),
-});
+export const saveVehicleSchema = z
+  .object({
+    registrationNumber: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .transform((v) => v.replace(/\s+/g, ' '))
+      .pipe(z.string().min(4, 'Enter the registration number').max(30)),
+    vehicleType: optionalText(50),
+    capacity: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(200)
+      .optional()
+      .or(z.literal('').transform(() => undefined)),
+    insuranceExpiry: optionalDate,
+    permitExpiry: optionalDate,
+    status: z.enum(VEHICLE_STATUSES).default('ACTIVE'),
+    /** Required while the vehicle is active. */
+    driverEmployeeId: optionalUuid,
+    conductorEmployeeId: optionalUuid,
+    notes: optionalText(1000),
+  })
+  .superRefine((v, ctx) => {
+    if (v.status !== 'ACTIVE') return;
+    if (!v.driverEmployeeId)
+      ctx.addIssue({ code: 'custom', path: ['driverEmployeeId'], message: 'Choose the driver' });
+    if (!v.conductorEmployeeId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['conductorEmployeeId'],
+        message: 'Choose the conductor',
+      });
+    if (v.driverEmployeeId && v.driverEmployeeId === v.conductorEmployeeId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['conductorEmployeeId'],
+        message: 'The conductor must be a different person from the driver',
+      });
+  });
 export type SaveVehicleInput = z.input<typeof saveVehicleSchema>;
 export type SaveVehicleData = z.output<typeof saveVehicleSchema>;
+
+/** Staff whose designation contains these words can be chosen as vehicle crew. */
+export const DRIVER_DESIGNATION = /driver/i;
+export const CONDUCTOR_DESIGNATION = /conductor/i;
+
+export type LicenceStatus = 'OK' | 'EXPIRING' | 'EXPIRED' | 'MISSING';
+
+export interface CrewMember {
+  id: string;
+  fullName: string;
+  phone: string | null;
+}
+
+export interface VehicleDriver extends CrewMember {
+  licenceNumber: string | null;
+  licenceExpiry: string | null;
+  /** EXPIRING = within 30 days. */
+  licenceStatus: LicenceStatus;
+}
 
 export interface VehicleItem {
   id: string;
@@ -56,8 +96,109 @@ export interface VehicleItem {
   permitExpiry: string | null;
   status: VehicleStatus;
   notes: string | null;
+  driver: VehicleDriver | null;
+  conductor: CrewMember | null;
+  /** Routes using this vehicle. */
+  routes: { id: string; name: string }[];
   /** Insurance or permit expires within 30 days (or has expired). */
   documentsDue: boolean;
+  /** Active vehicle without a driver or conductor (older records). */
+  crewMissing: boolean;
+  lastService: { serviceDate: string; odometerKm: number } | null;
+  nextServiceKm: number | null;
+  nextServiceDate: string | null;
+  /** The next service date is within 7 days (or has passed). */
+  serviceDue: boolean;
+}
+
+/** Staff who can crew a vehicle, with the vehicle they are on now (if any). */
+export interface CrewOption {
+  id: string;
+  fullName: string;
+  designation: string;
+  phone: string | null;
+  licenceNumber: string | null;
+  licenceExpiry: string | null;
+  /** Registration of the active vehicle this person already crews. */
+  onVehicle: { id: string; registrationNumber: string } | null;
+}
+
+export interface CrewOptions {
+  drivers: CrewOption[];
+  conductors: CrewOption[];
+  /** All active staff (for "who went with the vehicle" on a service record). */
+  staff: { id: string; fullName: string; designation: string }[];
+}
+
+// --- Vehicle service history -------------------------------------------------------------------
+
+const km = z.coerce
+  .number({ error: 'Enter the kilometres' })
+  .int('Use whole kilometres')
+  .min(0, 'Kilometres cannot be negative')
+  .max(9_999_999, 'That reading is too large');
+const optionalKm = km.optional().or(z.literal('').transform(() => undefined));
+
+export const servicePartInputSchema = z.object({
+  partName: z.string().trim().min(2, 'Enter the part name').max(120),
+  quantity: z.coerce.number().int().min(1, 'At least 1').max(999).default(1),
+  cost: moneySchema,
+});
+
+export const saveVehicleServiceSchema = z
+  .object({
+    serviceDate: isoDate,
+    garageName: optionalText(120),
+    odometerKm: km,
+    nextServiceKm: optionalKm,
+    nextServiceDate: optionalDate,
+    labourCost: moneySchema.default(0),
+    invoiceNumber: optionalText(60),
+    notes: optionalText(2000),
+    parts: z.array(servicePartInputSchema).max(50).default([]),
+    /** Staff who went with the vehicle. */
+    staffIds: z.array(uuidSchema).max(10).default([]),
+  })
+  .superRefine((v, ctx) => {
+    if (v.nextServiceKm !== undefined && v.nextServiceKm <= v.odometerKm)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['nextServiceKm'],
+        message: 'Next service must be at a higher reading than this one',
+      });
+    if (v.nextServiceDate && v.nextServiceDate <= v.serviceDate)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['nextServiceDate'],
+        message: 'Next service date must be after the service date',
+      });
+  });
+export type SaveVehicleServiceInput = z.input<typeof saveVehicleServiceSchema>;
+export type SaveVehicleServiceData = z.output<typeof saveVehicleServiceSchema>;
+
+export interface VehicleServiceItem {
+  id: string;
+  vehicleId: string;
+  serviceDate: string;
+  garageName: string | null;
+  odometerKm: number;
+  /** Kilometres since the previous service record. */
+  kmSincePrevious: number | null;
+  nextServiceKm: number | null;
+  nextServiceDate: string | null;
+  labourCost: number;
+  partsCost: number;
+  totalCost: number;
+  invoiceNumber: string | null;
+  notes: string | null;
+  parts: { id: string; partName: string; quantity: number; cost: number }[];
+  staff: { id: string; fullName: string; designation: string }[];
+  recordedBy: string;
+}
+
+export interface VehicleDetail extends VehicleItem {
+  services: VehicleServiceItem[];
+  serviceTotals: { count: number; totalCost: number; thisYearCost: number };
 }
 
 export const routeStopInputSchema = z.object({
@@ -71,8 +212,6 @@ export const saveRouteSchema = z.object({
   name: z.string().trim().min(2, 'Enter a route name').max(100),
   description: optionalText(1000),
   vehicleId: optionalUuid,
-  driverEmployeeId: optionalUuid,
-  attendantEmployeeId: optionalUuid,
   isActive: z.boolean().default(true),
   stops: z.array(routeStopInputSchema).max(50).default([]),
 });
@@ -93,9 +232,14 @@ export interface RouteItem {
   name: string;
   description: string | null;
   isActive: boolean;
-  vehicle: { id: string; registrationNumber: string; capacity: number | null } | null;
-  driver: { id: string; fullName: string; phone: string | null } | null;
-  attendant: { id: string; fullName: string; phone: string | null } | null;
+  /** The vehicle with its crew (driver and conductor are set on the vehicle). */
+  vehicle: {
+    id: string;
+    registrationNumber: string;
+    capacity: number | null;
+    driver: CrewMember | null;
+    conductor: CrewMember | null;
+  } | null;
   stops: RouteStopItem[];
   /** Students currently assigned. */
   students: number;

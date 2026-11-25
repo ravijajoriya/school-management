@@ -52,6 +52,8 @@ async function snapshot(ctx: TestContext) {
       ['timetables', p.timetable.count()],
       ['timetableEntries', p.timetableEntry.count()],
       ['vehicles', p.vehicle.count()],
+      ['vehicleServices', p.vehicleService.count()],
+      ['vehicleServiceParts', p.vehicleServicePart.count()],
       ['routes', p.transportRoute.count()],
       ['routeStops', p.routeStop.count()],
       ['riders', p.studentTransport.count()],
@@ -122,7 +124,16 @@ describe('Demo data seed & clear (e2e)', () => {
     // Phase 7: operations demo content, checked through the API as a demo teacher.
     expect(counts.transportRiders).toBeGreaterThan(0);
     expect(counts.complaints).toBe(3);
-    expect(counts.payrollEntries).toBe(9);
+    expect(counts.payrollEntries).toBe(13);
+    // Every demo vehicle has a driver (with licence) and a conductor, and a service history.
+    const vehicles = (await api('get', '/transport/vehicles', admin).expect(200)).body;
+    expect(vehicles).toHaveLength(2);
+    for (const v of vehicles) {
+      expect(v.crewMissing).toBe(false);
+      expect(v.driver.licenceNumber).toBeTruthy();
+      expect(v.lastService).not.toBeNull();
+    }
+    expect(counts.vehicleServices).toBe(3);
     const anil = (await login(ctx.http, 'anil@demo.local', DEMO_PASSWORD)).token;
     const meetings = (await api('get', '/meetings?status=SCHEDULED', anil).expect(200)).body;
     expect(meetings.total).toBe(2);

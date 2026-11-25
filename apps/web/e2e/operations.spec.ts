@@ -75,6 +75,34 @@ async function seed() {
   await api.dispose();
 }
 
+/** A driver (with licence) and a conductor for the transport test. */
+async function seedCrew() {
+  const api = await request.newContext({ baseURL: `http://localhost:${API_PORT}/api/v1/` });
+  const { accessToken } = await (
+    await api.post('auth/login', {
+      data: { identifier: ACCOUNTS.admin.email, password: ACCOUNTS.admin.password },
+    })
+  ).json();
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  for (const data of [
+    {
+      firstName: 'Bhanwar',
+      lastName: 'Singh',
+      designation: 'Driver',
+      licenceNumber: 'RJ14 20110034567',
+      licenceExpiry: addDays(today(), 900),
+    },
+    { firstName: 'Gopal', lastName: 'Saini', designation: 'Conductor' },
+  ]) {
+    const res = await api.post('employees', {
+      headers,
+      data: { ...data, joiningDate: '2018-04-01' },
+    });
+    expect(res.ok(), await res.text()).toBe(true);
+  }
+  await api.dispose();
+}
+
 async function pickStudent(page: Page, label: RegExp, name: string) {
   await page.getByLabel(label).fill(name.split(' ')[0]);
   await page.getByRole('button', { name: new RegExp(name) }).click();
@@ -88,22 +116,53 @@ test.describe('School operations', () => {
   });
 
   test('the office runs transport, complaints and certificates', async ({ page }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
+    await seedCrew();
     await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
 
-    // Transport: a van, a route with a stop, and a student on it.
+    // Transport: a van with its driver and conductor, a route with a stop, and a student on it.
     await navTo(page, 'Transport');
     await expect(page).toHaveURL(/\/admin\/transport$/);
-    await page
-      .getByRole('navigation', { name: 'Transport' })
-      .getByRole('link', { name: 'Vehicles' })
-      .click();
+    const tabs = page.getByRole('navigation', { name: 'Transport' });
+    await expect(tabs.getByRole('link', { name: 'Routes' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await tabs.getByRole('link', { name: 'Vehicles' }).click();
     await expect(page).toHaveURL(/\/vehicles$/);
+    await expect(tabs.getByRole('link', { name: 'Vehicles' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await page.getByRole('button', { name: 'New vehicle' }).click();
     await page.getByLabel(/Registration number/).fill('rj 14 pa 1234');
     await page.getByLabel('Seats').fill('12');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByRole('cell', { name: 'RJ 14 PA 1234' })).toBeVisible();
+    await page.getByRole('button', { name: 'Save vehicle' }).click();
+    await expect(page.getByText('Choose the driver')).toBeVisible();
+    await page.getByLabel(/^Driver/).selectOption({ label: 'Bhanwar Singh' });
+    await page.getByLabel(/^Conductor/).selectOption({ label: 'Gopal Saini' });
+    await page.getByRole('button', { name: 'Save vehicle' }).click();
+    await expect(page.getByRole('link', { name: 'RJ 14 PA 1234' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: /Bhanwar Singh/ })).toBeVisible();
+
+    // Service history: one service with a part; the crew is ticked as having gone along.
+    await page.getByRole('link', { name: 'RJ 14 PA 1234' }).click();
+    await expect(page.getByRole('heading', { name: 'RJ 14 PA 1234' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add service record' }).click();
+    const svc = page.getByRole('dialog');
+    await svc.getByLabel(/Odometer/).fill('21900');
+    await svc.getByLabel(/Next service at/).fill('26900');
+    await svc.getByLabel(/Garage/).fill('Jaipur Auto Care');
+    await svc.getByLabel(/Labour cost/).fill('900');
+    await svc.getByRole('button', { name: 'Add part' }).click();
+    await svc.getByLabel('Part 1', { exact: true }).fill('Battery (65 Ah)');
+    await svc.getByLabel('Cost of part 1').fill('5600');
+    await expect(svc.getByLabel('Bhanwar Singh · Driver')).toBeChecked();
+    await expect(svc.getByText('₹6,500')).toBeVisible();
+    await svc.getByRole('button', { name: 'Save record' }).click();
+    await expect(page.getByRole('cell', { name: /Battery \(65 Ah\)/ })).toBeVisible();
+    await expect(page.getByText('At 26,900 km', { exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Vehicles' }).first().click();
 
     await page
       .getByRole('navigation', { name: 'Transport' })
@@ -116,6 +175,7 @@ test.describe('School operations', () => {
     await page.getByRole('button', { name: 'Add stop' }).click();
     await page.getByLabel('Stop 1', { exact: true }).fill('Gandhi Path');
     await page.getByLabel('Pick-up').fill('07:05');
+    await expect(page.getByText('Driver Bhanwar Singh · Conductor Gopal Saini')).toBeVisible();
     await page.getByRole('button', { name: 'Save route' }).click();
     await expect(page.getByRole('heading', { name: 'Route 1 – Vaishali Nagar' })).toBeVisible();
 

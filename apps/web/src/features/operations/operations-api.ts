@@ -1,5 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  CrewOptions,
+  SaveVehicleServiceInput,
+  VehicleDetail,
+  VehicleServiceItem,
   AssignTransportInput,
   CertificateIssueItem,
   CertificateTemplateItem,
@@ -67,6 +71,46 @@ export function useSaveVehicle() {
   return useMutation({
     mutationFn: ({ id, ...input }: SaveVehicleInput & { id?: string }) =>
       save<VehicleItem>('/transport/vehicles', id, input),
+    onSuccess: refresh,
+  });
+}
+
+export const useVehicle = (id: string) =>
+  useQuery({
+    queryKey: ['transport', 'vehicles', id],
+    queryFn: async () => (await apiClient.get<VehicleDetail>(`/transport/vehicles/${id}`)).data,
+    enabled: !!id,
+  });
+
+export const useCrewOptions = (enabled = true) =>
+  useQuery({
+    queryKey: ['transport', 'crew-options'],
+    queryFn: async () => (await apiClient.get<CrewOptions>('/transport/crew-options')).data,
+    enabled,
+  });
+
+export function useSaveVehicleService(vehicleId: string) {
+  const refresh = useRefresh('transport');
+  return useMutation({
+    mutationFn: async ({ id, ...input }: SaveVehicleServiceInput & { id?: string }) =>
+      id
+        ? (await apiClient.patch<VehicleServiceItem>(`/transport/services/${id}`, input)).data
+        : (
+            await apiClient.post<VehicleServiceItem>(
+              `/transport/vehicles/${vehicleId}/services`,
+              input,
+            )
+          ).data,
+    onSuccess: refresh,
+  });
+}
+
+export function useDeleteVehicleService() {
+  const refresh = useRefresh('transport');
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/transport/services/${id}`);
+    },
     onSuccess: refresh,
   });
 }
