@@ -187,7 +187,13 @@ test.describe('Exams, results & timetable', () => {
     const teacher = await teacherContext.newPage();
     await signIn(teacher, ACCOUNTS.teacher.email, ACCOUNTS.teacher.password, /\/teacher$/);
     await navTo(teacher, 'My timetable');
-    await expect(teacher.getByRole('cell', { name: /Mathematics\s*Class 10 – A/ })).toBeVisible();
+    await expect(
+      teacher.getByRole('cell', { name: /Mathematics\s*Class 10 – A/ }).first(),
+    ).toBeVisible();
+    // Live week: dated columns, a legend, and every lesson coloured by its status.
+    await expect(teacher.getByText(/^Week of /)).toBeVisible();
+    await expect(teacher.getByText('Upcoming', { exact: true })).toBeVisible();
+    expect(await teacher.locator('[data-status]').count()).toBeGreaterThan(0);
     await teacherContext.close();
   });
 });

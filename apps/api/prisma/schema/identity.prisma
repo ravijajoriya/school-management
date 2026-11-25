@@ -91,6 +91,7 @@ model User {
   certificateTemplates CertificateTemplate[]  @relation("CertificateTemplateEditor")
   certificatesIssued   CertificateIssue[]     @relation("CertificateIssuer")
   idCardBatchesCreated IdCardBatch[]          @relation("IdCardBatchCreator")
+  holidaysCreated      Holiday[]              @relation("HolidayCreator")
 
   @@map("users")
 }

@@ -64,6 +64,7 @@ async function snapshot(ctx: TestContext) {
       ['payrollItems', p.payrollItem.count()],
       ['certificates', p.certificateIssue.count()],
       ['idCardBatches', p.idCardBatch.count()],
+      ['holidays', p.holiday.count()],
     ].map(async ([k, v]) => [k, await v] as const),
   );
   return Object.fromEntries(entries);

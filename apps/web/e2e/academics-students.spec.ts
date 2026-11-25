@@ -124,6 +124,13 @@ test.describe('Academics, staff & students', () => {
     await expect(teacher).toHaveURL(/\/teacher\/classes$/);
     await teacher.getByRole('link', { name: /Class 1 – A/ }).click();
     await expect(teacher.getByRole('row', { name: /Aarav Sharma/ })).toContainText('Ramesh Sharma');
+    // Each student shows today's attendance (not marked yet) with a summary above the list.
+    await expect(
+      teacher
+        .getByRole('row', { name: /Aarav Sharma/ })
+        .getByRole('img', { name: 'Not marked yet today' }),
+    ).toBeVisible();
+    await expect(teacher.getByLabel("Today's attendance")).toContainText('1 not marked');
     await teacher.goto('/admin/students');
     await expect(teacher.getByRole('heading', { name: /have access to this page/ })).toBeVisible();
     await teacherContext.close();

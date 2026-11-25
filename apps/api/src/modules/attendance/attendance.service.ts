@@ -19,6 +19,7 @@ import type { RequestContext } from '../../common/http/request-context.js';
 import type { RequestUser } from '../../common/http/request-user.js';
 import { dayToDate, fullName, isoDay, schoolDate } from '../../common/utils/content.js';
 import { AuditService } from '../audit/audit.service.js';
+import { HolidaysService } from '../academics/holidays.service.js';
 import { TeacherScopeService, byRollThenName } from '../academics/teacher-scope.service.js';
 
 export const sectionInclude = {
@@ -49,6 +50,7 @@ export class AttendanceService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly scope: TeacherScopeService,
+    private readonly holidays: HolidaysService,
   ) {}
 
   async loadSection(sectionId: string) {
@@ -101,6 +103,8 @@ export class AttendanceService {
       );
     }
     if (date > today) return locked('Attendance cannot be marked for a future date.');
+    const holiday = await this.holidays.on(date);
+    if (holiday) return locked(`${holiday.name} is a school holiday, so attendance isn't taken.`);
     if (actor.permissions.has(PERMISSIONS.ATTENDANCE_MANAGE)) {
       return { canEdit: true, requiresReason: date < today, lockedReason: null };
     }

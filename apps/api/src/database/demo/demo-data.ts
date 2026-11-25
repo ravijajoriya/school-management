@@ -67,6 +67,8 @@ export interface DemoManifest {
   inventoryItemIds: string[];
   payrollRunIds: string[];
   idCardBatchIds: string[];
+  /** Added with the holiday calendar. */
+  holidayIds: string[];
 }
 
 type Log = (message: string) => void;
@@ -115,6 +117,7 @@ const EMPTY_LISTS = {
   inventoryItemIds: [],
   payrollRunIds: [],
   idCardBatchIds: [],
+  holidayIds: [],
 };
 
 /** The active `demo_data.seeded` manifest, or null when demo data is not present. */
@@ -516,6 +519,7 @@ export async function seedDemoData(
     inventoryItemIds: [],
     payrollRunIds: [],
     idCardBatchIds: [],
+    holidayIds: [],
   };
   const counts: Record<string, number> = {};
 
@@ -1747,6 +1751,45 @@ export async function seedDemoData(
       manifest.noticeIds.push(row.id);
     }
 
+    // Holidays: one later this week (shows faded on teacher timetables), a winter break and
+    // Republic Day — only those that fall inside the year and are not today.
+    const yearEnd = isoDay(year.endDate);
+    let soon = addDays(today, 2);
+    if (isSunday(soon)) soon = addDays(soon, 1);
+    const hy = Number(yearStart.slice(0, 4));
+    const holidayDefs = [
+      { name: 'Demo – Founders’ Day', startDate: soon, endDate: soon },
+      { name: 'Demo – Winter break', startDate: `${hy}-12-25`, endDate: `${hy + 1}-01-01` },
+      { name: 'Demo – Republic Day', startDate: `${hy + 1}-01-26`, endDate: `${hy + 1}-01-26` },
+    ].filter(
+      (h, i, all) =>
+        h.startDate >= yearStart &&
+        h.endDate <= yearEnd &&
+        !(h.startDate <= today && today <= h.endDate) &&
+        !all.slice(0, i).some((o) => o.startDate <= h.endDate && h.startDate <= o.endDate),
+    );
+    for (const h of holidayDefs) {
+      const clash = await tx.holiday.findFirst({
+        where: {
+          academicYearId: year.id,
+          startDate: { lte: dayToDate(h.endDate) },
+          endDate: { gte: dayToDate(h.startDate) },
+        },
+      });
+      if (clash) continue;
+      const row = await tx.holiday.create({
+        data: {
+          academicYearId: year.id,
+          name: h.name,
+          startDate: dayToDate(h.startDate),
+          endDate: dayToDate(h.endDate),
+          createdBy: admin.id,
+        },
+      });
+      manifest.holidayIds.push(row.id);
+    }
+    counts.holidays = manifest.holidayIds.length;
+
     // --- Phase 7: school operations -----------------------------------------------------------
     await seedOperations(tx, {
       manifest,
@@ -2234,6 +2277,19 @@ export async function clearDemoData(
       })
     ).map((e) => e.id);
 
+    count(
+      'holidays',
+      (
+        await tx.holiday.deleteMany({
+          where: {
+            OR: [
+              { id: { in: m.holidayIds } },
+              ...(m.academicYearId ? [{ academicYearId: m.academicYearId }] : []),
+            ],
+          },
+        })
+      ).count,
+    );
     // Phase 7 rows that point at demo students, staff or the demo year.
     count(
       'transport assignments',

@@ -454,6 +454,7 @@ export class TimetableService {
     return {
       teacher: { id: emp.id, fullName: fullName(emp.firstName, emp.lastName) },
       entries: entries.map((e) => ({
+        sectionId: e.timetable.sectionId,
         dayOfWeek: e.dayOfWeek,
         periodNumber: e.periodNumber,
         startTime: fromTime(e.startTime),

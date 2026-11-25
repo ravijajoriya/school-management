@@ -48,6 +48,7 @@ import type { RequestUser } from '../../common/http/request-user.js';
 import { AcademicYearsService } from './academic-years.service.js';
 import { StructureService } from './structure.service.js';
 import { TeacherScopeService } from './teacher-scope.service.js';
+import { HolidaysController, HolidaysService } from './holidays.service.js';
 
 const id = () => Param('id', { schema: uuidSchema });
 
@@ -257,8 +258,9 @@ export class TeacherPortalController {
     SubjectsController,
     StructureController,
     TeacherPortalController,
+    HolidaysController,
   ],
-  providers: [AcademicYearsService, StructureService, TeacherScopeService],
-  exports: [AcademicYearsService, StructureService, TeacherScopeService],
+  providers: [AcademicYearsService, StructureService, TeacherScopeService, HolidaysService],
+  exports: [AcademicYearsService, StructureService, TeacherScopeService, HolidaysService],
 })
 export class AcademicsModule {}
