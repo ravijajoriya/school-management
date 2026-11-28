@@ -120,7 +120,7 @@ test.describe('Attendance & leave', () => {
     const office = await officeContext.newPage();
     office.on('dialog', (d) => void d.accept());
     await signIn(office, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    await expect(office.getByRole('link', { name: /Attendance today/ })).toContainText('50%');
+    await expect(office.getByRole('link', { name: /Attendance today/i })).toContainText('50%');
     await navTo(office, 'Daily Report');
     await expect(office).toHaveURL(/\/admin\/attendance\/daily$/);
     const row = office.getByRole('row', { name: /Class 1 – A/ });
@@ -167,10 +167,10 @@ test.describe('Attendance & leave', () => {
     const officeContext = await browser.newContext();
     const office = await officeContext.newPage();
     await signIn(office, ACCOUNTS.admin.email, ACCOUNTS.admin.password, /\/admin$/);
-    await expect(office.getByRole('link', { name: /Leave requests to review/ })).toContainText('1');
+    await expect(office.getByRole('link', { name: /Leave requests/i })).toContainText('1');
     await navTo(office, 'Staff Leave');
     await office
-      .getByRole('row', { name: /Sunita Verma/ })
+      .getByRole('listitem', { name: /Sunita Verma/ })
       .getByRole('button', { name: 'Approve' })
       .click();
     const dialog = office.getByRole('dialog', { name: /Approve leave for Sunita Verma/ });

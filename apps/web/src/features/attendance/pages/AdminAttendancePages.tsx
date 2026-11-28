@@ -20,6 +20,7 @@ import {
   PageSpinner,
   Select,
 } from '@/components/ui';
+import { HeroCard } from '@/components/common/HeroCard';
 import { YearPicker } from '@/features/admin/components/YearPicker';
 import { useSectionOptions, useYearSelection } from '@/features/admin/people-api';
 import { errorMessages } from '@/lib/api-client';
@@ -331,7 +332,11 @@ export function AttendanceRegisterPage() {
   const [filtersOpen, setFiltersOpen] = useState(true);
   return (
     <div className="mx-auto max-w-6xl">
-      <RegisterHero />
+      <HeroCard
+        title="Class attendance register"
+        description={<>One class, one month: every student&rsquo;s day-by-day attendance.</>}
+        illustration={<CalendarIllustration />}
+      />
       {sectionId && <RegisterActions sectionId={sectionId} month={month} />}
       <Card className="mb-3 sm:mb-5 print:hidden">
         <button
@@ -436,36 +441,9 @@ function IconField({
   );
 }
 
-/** Page header card with a calendar illustration. */
-function RegisterHero() {
+function CalendarIllustration() {
   return (
-    <div className="relative mb-3 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-100/70 px-4 py-3.5 ring-1 ring-blue-100 sm:mb-4 sm:p-6 print:hidden">
-      <span
-        className="pointer-events-none absolute -bottom-10 right-4 h-36 w-36 rounded-full bg-blue-200/30 blur-2xl"
-        aria-hidden="true"
-      />
-      <div className="relative flex items-center gap-2 sm:gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[1.1rem] font-bold leading-tight tracking-tight text-brand-navy min-[400px]:text-[1.2rem] sm:text-3xl">
-            Class attendance register
-          </h1>
-          <span
-            className="mt-1.5 block h-1 w-10 rounded-full bg-gradient-to-r from-brand-gold to-amber-400 sm:mt-2 sm:w-12"
-            aria-hidden="true"
-          />
-          <p className="mt-1.5 text-[13px] leading-snug text-ink-muted sm:mt-3 sm:text-base sm:leading-relaxed">
-            One class, one month: every student&rsquo;s day-by-day attendance.
-          </p>
-        </div>
-        <CalendarIllustration className="h-14 w-14 shrink-0 min-[400px]:h-16 min-[400px]:w-16 sm:h-28 sm:w-28" />
-      </div>
-    </div>
-  );
-}
-
-function CalendarIllustration({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
       <defs>
         <linearGradient id="reg-cal-top" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#3b82f6" />

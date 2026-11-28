@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { usePagination } from '@/lib/use-pagination';
 import { Pagination } from './index';
 
+/** The "Page x of y" line (its numbers are bold, so match the whole line). */
+const pageLabel = (text: string) =>
+  screen.getByText((_, el) => el?.tagName === 'SPAN' && el.textContent === text);
+
 describe('Pagination', () => {
   it('shows which records are on screen and changes the page size', async () => {
     const onChange = vi.fn();
@@ -19,7 +23,7 @@ describe('Pagination', () => {
       />,
     );
     expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 21–40 of 47 records');
-    expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
+    expect(pageLabel('Page 2 of 3')).toBeInTheDocument();
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText('Rows per page'), '50');
     expect(onPageSizeChange).toHaveBeenCalledWith(50);
@@ -35,7 +39,7 @@ describe('Pagination', () => {
     expect(screen.queryByLabelText('Rows per page')).not.toBeInTheDocument();
     rerender(<Pagination page={1} totalPages={1} total={0} pageSize={20} onChange={() => {}} />);
     expect(screen.getByText('No records')).toBeInTheDocument();
-    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+    expect(pageLabel('Page 1 of 1')).toBeInTheDocument();
   });
 });
 

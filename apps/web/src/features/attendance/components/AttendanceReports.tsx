@@ -6,7 +6,8 @@ import {
   type RegisterRow,
   type SectionRegister,
 } from '@school/shared';
-import { ChevronRight, CircleAlert, Printer, Users } from 'lucide-react';
+import { CalendarDays, ChevronRight, CircleAlert, Printer, Users } from 'lucide-react';
+import { SectionCard } from '@/components/common/SectionCard';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Alert, Badge, Button, Card, EmptyState, Modal, PageSpinner } from '@/components/ui';
@@ -344,66 +345,112 @@ function StudentMonthSheet({
   );
 }
 
-/** Attendance summary on a student's page: totals, month by month, recent absences. */
-export function StudentAttendanceCard({ studentId }: { studentId: string }) {
+/**
+ * Attendance on a student's page. `summary` shows just the year's percentage and totals (with an
+ * optional "more" button); otherwise the month-by-month figures and recent absences follow too.
+ */
+export function StudentAttendanceCard({
+  studentId,
+  summary: compact = false,
+  onMore,
+}: {
+  studentId: string;
+  summary?: boolean;
+  onMore?: () => void;
+}) {
   const summary = useStudentAttendance(studentId);
+  const t = summary.data?.totals;
   return (
-    <Card className="p-5">
-      <h2 className="font-semibold text-brand-navy">Attendance</h2>
+    <SectionCard icon={CalendarDays} title="Attendance">
       {summary.isLoading ? (
         <PageSpinner />
-      ) : summary.isError || !summary.data ? (
+      ) : summary.isError || !summary.data || !t ? (
         <Alert>{errorMessages(summary.error)[0]}</Alert>
       ) : !summary.data.enrolment ? (
-        <p className="mt-2 text-sm text-ink-muted">Not enrolled in a class yet.</p>
-      ) : summary.data.totals.marked === 0 ? (
-        <p className="mt-2 text-sm text-ink-muted">
+        <p className="text-sm text-ink-muted">Not enrolled in a class yet.</p>
+      ) : t.marked === 0 ? (
+        <p className="text-sm text-ink-muted">
           No attendance marked yet for {summary.data.enrolment.academicYear.name}.
         </p>
       ) : (
-        <div className="mt-3 space-y-4">
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <span>
-              {summary.data.enrolment.academicYear.name}:{' '}
-              <PercentBadge value={summary.data.totals.percentage} />
-            </span>
-            <span className="text-ink-muted">
-              Present {summary.data.totals.present} · Absent {summary.data.totals.absent} · Late{' '}
-              {summary.data.totals.late} · {summary.data.totals.marked} days marked
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {summary.data.months.map((m) => (
-              <div key={m.month} className="rounded-md border border-gray-200 px-3 py-2 text-xs">
-                <p className="font-medium text-ink">
-                  {new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString('en-IN', {
-                    month: 'short',
-                    year: '2-digit',
-                    timeZone: 'UTC',
-                  })}
-                </p>
-                <PercentBadge value={m.percentage} />
-              </div>
-            ))}
-          </div>
-          {summary.data.recent.length > 0 && (
-            <div>
-              <h3 className="text-xs font-medium uppercase text-ink-muted">Absent or late</h3>
-              <ul className="mt-1 divide-y divide-gray-100 text-sm">
-                {summary.data.recent.map((r) => (
-                  <li key={r.date} className="flex gap-3 py-1">
-                    <span className="w-28 text-ink-muted">{formatDate(r.date)}</span>
-                    <Badge tone={r.status === 'ABSENT' ? 'red' : 'amber'}>
-                      {ATTENDANCE_STATUS_LABELS[r.status]}
-                    </Badge>
-                    {r.remarks && <span className="text-ink-muted">{r.remarks}</span>}
-                  </li>
-                ))}
-              </ul>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div
+              className={`shrink-0 rounded-lg px-3 py-2 text-center ring-1 sm:px-4 sm:py-2.5 ${
+                t.percentage !== null && t.percentage < ATTENDANCE_LOW_THRESHOLD
+                  ? 'bg-red-50 text-red-700 ring-red-100'
+                  : 'bg-green-50 text-green-700 ring-green-100'
+              }`}
+            >
+              <p className="text-xl font-bold leading-tight">
+                {t.percentage === null ? '—' : `${t.percentage}%`}
+              </p>
+              <p className="text-[11px] leading-tight">
+                Overall
+                <br />({summary.data.enrolment.academicYear.name})
+              </p>
             </div>
+            <span className="h-12 w-px shrink-0 bg-gray-200" aria-hidden="true" />
+            <div className="min-w-0 flex-1 text-[13px] sm:text-sm">
+              <p className="text-ink">
+                Present {t.present} · Absent {t.absent} · Late {t.late}
+              </p>
+              <p className="text-ink-muted">{t.marked} days marked</p>
+            </div>
+            {onMore && (
+              <button
+                type="button"
+                onClick={onMore}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink transition-colors hover:bg-gray-100"
+                aria-label="Attendance details"
+              >
+                <ChevronRight className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          {!compact && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {summary.data.months.map((m) => (
+                  <div
+                    key={m.month}
+                    className="rounded-md border border-gray-200 px-3 py-2 text-xs"
+                  >
+                    <p className="font-medium text-ink">
+                      {new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString('en-IN', {
+                        month: 'short',
+                        year: '2-digit',
+                        timeZone: 'UTC',
+                      })}
+                    </p>
+                    <PercentBadge value={m.percentage} />
+                  </div>
+                ))}
+              </div>
+              {summary.data.recent.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium uppercase text-ink-muted">Absent or late</h3>
+                  <ul className="mt-1 divide-y divide-gray-100 text-sm">
+                    {summary.data.recent.map((r) => (
+                      <li key={r.date} className="flex items-start gap-3 py-1">
+                        <span className="w-24 shrink-0 text-ink-muted sm:w-28">
+                          {formatDate(r.date)}
+                        </span>
+                        <span className="shrink-0">
+                          <Badge tone={r.status === 'ABSENT' ? 'red' : 'amber'}>
+                            {ATTENDANCE_STATUS_LABELS[r.status]}
+                          </Badge>
+                        </span>
+                        {r.remarks && <span className="min-w-0 text-ink-muted">{r.remarks}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
-    </Card>
+    </SectionCard>
   );
 }

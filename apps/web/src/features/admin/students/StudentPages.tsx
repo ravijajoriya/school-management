@@ -9,7 +9,6 @@ import {
   STUDENT_STATUS_LABELS,
   STUDENT_STATUSES,
   createStudentSchema,
-  formatRupees,
   type CreateStudentInput,
   type EnrolmentHistoryItem,
   type GuardianItem,
@@ -17,10 +16,34 @@ import {
   type StudentDetail,
   type StudentStatus,
 } from '@school/shared';
-import { ArrowLeft, Camera, Plus, Trash2, UserRound } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  CalendarDays,
+  CalendarRange,
+  Camera,
+  Coins,
+  Droplet,
+  FileText,
+  GraduationCap,
+  House,
+  LogOut,
+  MapPin,
+  Mars,
+  Pencil,
+  Phone,
+  Plus,
+  Trash2,
+  UserRound,
+  UserX,
+  Users,
+  UsersRound,
+  Venus,
+  VenusAndMars,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   Alert,
   Badge,
@@ -59,6 +82,28 @@ import {
 import { AddressFields, EnrolmentFields, StudentFields } from './StudentFormParts';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
 import { usePagination } from '@/lib/use-pagination';
+import { GraduateIllustration, HeroCard } from '@/components/common/HeroCard';
+import {
+  ClassBadge,
+  FeesPill,
+  StatusDot,
+  StudentAvatar,
+  StudentCard,
+  StudentMenu,
+  StudentTile,
+} from './StudentListParts';
+import {
+  CountBar,
+  FilterCard,
+  IconSelect,
+  InitialsAvatar,
+  RowMenu,
+  SearchBox,
+  type RowMenuItem,
+} from '@/components/common/ListParts';
+import { SectionCard } from '@/components/common/SectionCard';
+import { useViewMode } from '@/lib/use-view-mode';
+import { admittedLabel } from './student-format';
 import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', WITHDRAWN: 'red' } as const;
@@ -68,13 +113,6 @@ const MONTHS = Array.from({ length: 12 }, (_, i) =>
     new Date(Date.UTC(2000, i, 1)),
   ),
 );
-/** "2026-04-12" → "Apr 2026". */
-const admittedLabel = (day: string | null) =>
-  day
-    ? new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
-        new Date(`${day}T00:00:00Z`),
-      )
-    : '—';
 const ENROLMENT_TONE = {
   ACTIVE: 'green',
   PROMOTED: 'navy',
@@ -98,6 +136,7 @@ export function StudentsPage() {
   const [admissionYear, setAdmissionYear] = useState('');
   const [admissionMonth, setAdmissionMonth] = useState('');
   const [pendingFees, setPendingFees] = useState<'' | 'YES' | 'NO'>('');
+  const [view, setView] = useViewMode('students');
   const { can } = useAuth();
   const seeFees = can(PERMISSIONS.FEES_READ);
   const admissionYears = useAdmissionYears();
@@ -122,200 +161,252 @@ export function StudentsPage() {
       setPage(1);
     };
   const classes = sections.data?.map((c) => c.class) ?? [];
+  const yearName = years.data?.find((y) => y.id === yearId)?.name;
+  const items = list.data?.items ?? [];
   return (
-    <div>
-      <PageHeader
+    <div className="mx-auto max-w-7xl">
+      <HeroCard
         title="Students"
         description="Search students and see their class for the selected academic year."
-        actions={
-          <>
-            <YearPicker yearId={yearId} onChange={reset(setYearId)} years={years.data} />
-            <ExportButtons
-              report="students"
-              params={{
-                academicYearId: yearId || undefined,
-                classId: classId || undefined,
-                sectionId: sectionId || undefined,
-                status: status || undefined,
-                search: search || undefined,
-                admissionYear: admissionYear || undefined,
-                admissionMonth: admissionMonth || undefined,
-                pendingFees: (seeFees && pendingFees) || undefined,
-              }}
-            />
-            <PermissionGate permissions={[PERMISSIONS.STUDENTS_MANAGE]}>
-              <Button onClick={() => navigate('/admin/students/new')}>Register student</Button>
-            </PermissionGate>
-          </>
-        }
+        illustration={<GraduateIllustration />}
       />
-      <Card>
-        <div className="filter-bar flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
-          <Input
-            type="search"
-            placeholder="Name, admission no. or parent phone"
-            className="max-w-xs"
-            value={search}
-            onChange={(e) => reset(setSearch)(e.target.value)}
-            aria-label="Search students"
-          />
-          <Select
-            className="max-w-[150px]"
-            value={classId}
-            onChange={(e) => {
-              reset(setClassId)(e.target.value);
-              setSectionId('');
-            }}
-            aria-label="Filter by class"
-            disabled={notEnrolled}
-          >
-            <option value="">All classes</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3 [&_button]:text-[13px] sm:[&_button]:text-sm">
+        <IconSelect
+          icon={CalendarDays}
+          value={yearId}
+          onChange={(e) => reset(setYearId)(e.target.value)}
+          aria-label="Academic year"
+          className="basis-full sm:w-64 sm:basis-auto"
+        >
+          {years.data?.map((y) => (
+            <option key={y.id} value={y.id}>
+              {y.name}
+              {y.isActive ? ' (current)' : y.status === 'DRAFT' ? ' (upcoming)' : ''}
+            </option>
+          ))}
+        </IconSelect>
+        <ExportButtons
+          size="md"
+          report="students"
+          params={{
+            academicYearId: yearId || undefined,
+            classId: classId || undefined,
+            sectionId: sectionId || undefined,
+            status: status || undefined,
+            search: search || undefined,
+            admissionYear: admissionYear || undefined,
+            admissionMonth: admissionMonth || undefined,
+            pendingFees: (seeFees && pendingFees) || undefined,
+          }}
+        />
+        <PermissionGate permissions={[PERMISSIONS.STUDENTS_MANAGE]}>
+          <Button onClick={() => navigate('/admin/students/new')} className="ml-auto">
+            <Plus className="h-4 w-4" aria-hidden="true" /> Register student
+          </Button>
+        </PermissionGate>
+      </div>
+
+      <FilterCard id="student-filters">
+        <SearchBox
+          className="col-span-2"
+          placeholder="Name, admission no. or phone"
+          value={search}
+          onChange={(e) => reset(setSearch)(e.target.value)}
+          aria-label="Search students"
+        />
+        <IconSelect
+          icon={GraduationCap}
+          value={classId}
+          onChange={(e) => {
+            reset(setClassId)(e.target.value);
+            setSectionId('');
+          }}
+          aria-label="Filter by class"
+          disabled={notEnrolled}
+        >
+          <option value="">All classes</option>
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          icon={Users}
+          value={sectionId}
+          onChange={(e) => reset(setSectionId)(e.target.value)}
+          aria-label="Filter by section"
+          disabled={notEnrolled}
+        >
+          <option value="">All sections</option>
+          {sections.options
+            .filter((o) => !classId || o.classId === classId)
+            .map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
               </option>
             ))}
-          </Select>
-          <Select
-            className="max-w-[160px]"
-            value={sectionId}
-            onChange={(e) => reset(setSectionId)(e.target.value)}
-            aria-label="Filter by section"
-            disabled={notEnrolled}
+        </IconSelect>
+        <IconSelect
+          leading={<StatusDot status={status} />}
+          value={status}
+          onChange={(e) => reset(setStatus)(e.target.value as StudentStatus | '')}
+          aria-label="Filter by status"
+        >
+          <option value="">Any status</option>
+          {STUDENT_STATUSES.map((st) => (
+            <option key={st} value={st}>
+              {STUDENT_STATUS_LABELS[st]}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          icon={CalendarDays}
+          value={admissionYear}
+          onChange={(e) => reset(setAdmissionYear)(e.target.value)}
+          aria-label="Filter by admission year"
+        >
+          <option value="">Admitted</option>
+          {admissionYears.data?.map((y) => (
+            <option key={y} value={y}>
+              Admitted {y}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          icon={CalendarRange}
+          value={admissionMonth}
+          onChange={(e) => reset(setAdmissionMonth)(e.target.value)}
+          aria-label="Filter by admission month"
+        >
+          <option value="">Any month</option>
+          {MONTHS.map((m, i) => (
+            <option key={m} value={i + 1}>
+              {m}
+            </option>
+          ))}
+        </IconSelect>
+        {seeFees && (
+          <IconSelect
+            icon={Coins}
+            value={pendingFees}
+            onChange={(e) => reset(setPendingFees)(e.target.value as '' | 'YES' | 'NO')}
+            aria-label="Filter by pending fees"
           >
-            <option value="">All sections</option>
-            {sections.options
-              .filter((s) => !classId || s.classId === classId)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-          </Select>
-          <Select
-            className="max-w-[150px]"
-            value={status}
-            onChange={(e) => reset(setStatus)(e.target.value as StudentStatus | '')}
-            aria-label="Filter by status"
-          >
-            <option value="">Any status</option>
-            {STUDENT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STUDENT_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-          <Select
-            className="max-w-[180px]"
-            value={admissionYear}
-            onChange={(e) => reset(setAdmissionYear)(e.target.value)}
-            aria-label="Filter by admission year"
-          >
-            <option value="">Admitted: any year</option>
-            {admissionYears.data?.map((y) => (
-              <option key={y} value={y}>
-                Admitted {y}
-              </option>
-            ))}
-          </Select>
-          <Select
-            className="max-w-[150px]"
-            value={admissionMonth}
-            onChange={(e) => reset(setAdmissionMonth)(e.target.value)}
-            aria-label="Filter by admission month"
-          >
-            <option value="">Any month</option>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m}
-              </option>
-            ))}
-          </Select>
-          {seeFees && (
-            <Select
-              className="max-w-[170px]"
-              value={pendingFees}
-              onChange={(e) => reset(setPendingFees)(e.target.value as '' | 'YES' | 'NO')}
-              aria-label="Filter by pending fees"
-            >
-              <option value="">Fees: all</option>
-              <option value="YES">Fees pending</option>
-              <option value="NO">No fees pending</option>
-            </Select>
-          )}
+            <option value="">Fees: all</option>
+            <option value="YES">Fees pending</option>
+            <option value="NO">No fees pending</option>
+          </IconSelect>
+        )}
+        <div className="col-span-2 flex items-center px-1 lg:col-span-1">
           <Checkbox
             label="Not enrolled this year"
             checked={notEnrolled}
             onChange={(e) => reset(setNotEnrolled)(e.target.checked)}
           />
         </div>
-        {list.isLoading ? (
-          <PageSpinner />
-        ) : !list.data?.items.length ? (
-          <EmptyState title="No students found" />
-        ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Student</th>
-                <th className="px-4 py-3 font-medium">Class</th>
-                <th className="px-4 py-3 font-medium">Admitted</th>
-                {seeFees && <th className="px-4 py-3 text-right font-medium">Pending fees</th>}
-                <th className="px-4 py-3 font-medium">Parent</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {list.data.items.map((s) => (
-                <tr
-                  key={s.id}
-                  className="cursor-pointer hover:bg-surface/60"
-                  onClick={() => navigate(`/admin/students/${s.id}`)}
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/admin/students/${s.id}`}
-                      className="font-medium text-brand-navy hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {s.fullName}
-                    </Link>
-                    <div className="text-xs text-ink-muted">{s.admissionNumber}</div>
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">
-                    {s.enrolment ? (
-                      `${s.enrolment.className} – ${s.enrolment.sectionName}`
-                    ) : (
-                      <span className="text-amber-700">Not enrolled</span>
+      </FilterCard>
+
+      <CountBar
+        icon={Users}
+        title={`${(list.data?.total ?? 0).toLocaleString('en-IN')} Student${list.data?.total === 1 ? '' : 's'}`}
+        subtitle={yearName ? `Academic year: ${yearName}` : undefined}
+        view={view}
+        onViewChange={setView}
+      />
+
+      {list.isLoading ? (
+        <PageSpinner />
+      ) : !items.length ? (
+        <Card>
+          <EmptyState icon={Users} title="No students found" />
+        </Card>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          {items.map((s) => (
+            <StudentTile key={s.id} student={s} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2.5 md:hidden">
+            {items.map((s) => (
+              <StudentCard key={s.id} student={s} />
+            ))}
+          </div>
+          <Card className="hidden overflow-x-auto md:block">
+            <table className="min-w-full text-sm">
+              <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Student</th>
+                  <th className="px-4 py-3 font-medium">Class</th>
+                  <th className="px-4 py-3 font-medium">Admitted</th>
+                  {seeFees && <th className="px-4 py-3 text-right font-medium">Pending fees</th>}
+                  <th className="px-4 py-3 font-medium">Parent</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-2 py-3" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="cursor-pointer hover:bg-surface/60"
+                    onClick={() => navigate(`/admin/students/${s.id}`)}
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <StudentAvatar name={s.fullName} className="h-9 w-9 text-xs" />
+                        <div className="min-w-0">
+                          <Link
+                            to={`/admin/students/${s.id}`}
+                            className="font-semibold text-brand-navy hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {s.fullName}
+                          </Link>
+                          <div className="text-xs text-ink-muted">{s.admissionNumber}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <ClassBadge student={s} icon={false} />
+                    </td>
+                    <td className="px-4 py-2.5 text-ink-muted">{admittedLabel(s.admissionDate)}</td>
+                    {seeFees && (
+                      <td className="px-4 py-2.5 text-right">
+                        <FeesPill amount={s.pendingFees} />
+                      </td>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">{admittedLabel(s.admissionDate)}</td>
-                  {seeFees && (
-                    <td className="px-4 py-3 text-right">
-                      {s.pendingFees ? (
-                        <span className="font-medium text-red-700">
-                          {formatRupees(s.pendingFees)}
-                        </span>
+                    <td className="px-4 py-2.5 text-ink-muted">
+                      {s.primaryGuardian ? (
+                        <>
+                          <div className="text-ink">{s.primaryGuardian.fullName}</div>
+                          <div className="text-xs">{s.primaryGuardian.phone}</div>
+                        </>
                       ) : (
-                        <span className="text-emerald-700">Nil</span>
+                        '—'
                       )}
                     </td>
-                  )}
-                  <td className="px-4 py-3 text-ink-muted">
-                    {s.primaryGuardian
-                      ? `${s.primaryGuardian.fullName} · ${s.primaryGuardian.phone}`
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={STATUS_TONE[s.status]}>{STUDENT_STATUS_LABELS[s.status]}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {list.data && list.data.total > 0 && (
+                    <td className="px-4 py-2.5">
+                      <Badge tone={STATUS_TONE[s.status]}>{STUDENT_STATUS_LABELS[s.status]}</Badge>
+                    </td>
+                    <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <StudentMenu student={s} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+
+      {list.data && list.data.total > 0 && (
+        <Card className="mt-3 sm:mt-4">
           <Pagination
+            className="py-3.5"
             page={list.data.page}
             totalPages={list.data.totalPages}
             total={list.data.total}
@@ -323,8 +414,8 @@ export function StudentsPage() {
             pageSize={pageSize}
             onPageSizeChange={setPageSize}
           />
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
@@ -550,11 +641,64 @@ export function StudentDetailPage() {
   return <StudentDetailView student={student.data} />;
 }
 
+type DetailTab = 'overview' | 'fees' | 'attendance' | 'documents';
+
+const GENDER_ICON = { MALE: Mars, FEMALE: Venus, OTHER: VenusAndMars } as const;
+
+/** Small pill in the student header card. */
+function HeaderPill({
+  icon: Icon,
+  children,
+  className = '',
+}: {
+  icon?: typeof Mars;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${
+        className || 'bg-white/80 text-brand-navy ring-1 ring-blue-100'
+      }`}
+    >
+      {Icon && <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />}
+      {children}
+    </span>
+  );
+}
+
+const STATUS_PILL = {
+  ACTIVE: 'bg-green-100 text-green-700',
+  INACTIVE: 'bg-gray-100 text-gray-700',
+  WITHDRAWN: 'bg-red-100 text-red-700',
+} as const;
+
+const ENROLMENT_PILL: Record<keyof typeof ENROLMENT_TONE, string> = {
+  ACTIVE: 'bg-green-100 text-green-700',
+  PROMOTED: 'bg-blue-100 text-blue-700',
+  RETAINED: 'bg-amber-100 text-amber-800',
+  TRANSFERRED: 'bg-gray-100 text-gray-700',
+  WITHDRAWN: 'bg-red-100 text-red-700',
+  COMPLETED: 'bg-blue-100 text-blue-700',
+};
+
 function StudentDetailView({ student }: { student: StudentDetail }) {
   const { can } = useAuth();
   const manage = can(PERMISSIONS.STUDENTS_MANAGE);
   const lifecycle = can(PERMISSIONS.STUDENTS_LIFECYCLE);
+  const seeFees = can(PERMISSIONS.FEES_READ);
+  const seeAttendance = can(PERMISSIONS.ATTENDANCE_READ);
   const actions = useStudentActions(student.id);
+  const [params, setParams] = useSearchParams();
+  const tabs = [
+    ['overview', 'Overview', House],
+    ...(seeFees ? [['fees', 'Fees', Coins] as const] : []),
+    ...(seeAttendance ? [['attendance', 'Attendance', CalendarDays] as const] : []),
+    ['documents', 'Documents', FileText],
+  ] as const;
+  const requested = params.get('tab') as DetailTab | null;
+  const tab: DetailTab = tabs.some(([k]) => k === requested) ? requested! : 'overview';
+  const setTab = (t: DetailTab) => setParams(t === 'overview' ? {} : { tab: t }, { replace: true });
   const [photoVersion, setPhotoVersion] = useState(0);
   const photo = usePrivateImage(
     student.hasPhoto ? `/students/${student.id}/photo` : null,
@@ -571,6 +715,11 @@ function StudentDetailView({ student }: { student: StudentDetail }) {
   } | null>(null);
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const current = student.enrolments.find((e) => e.status === 'ACTIVE');
+  const address =
+    [student.addressLine1, student.addressLine2, student.city, student.state, student.postalCode]
+      .filter(Boolean)
+      .join(', ') || '—';
+  const GenderIcon = student.gender ? GENDER_ICON[student.gender] : UserRound;
 
   const onPhoto = async (file: File | undefined) => {
     if (!file) return;
@@ -583,247 +732,342 @@ function StudentDetailView({ student }: { student: StudentDetail }) {
     }
   };
 
+  const feeCard = seeFees && <StudentFeeCard studentId={student.id} />;
+  const documents = (
+    <DocumentsPanel
+      basePath={`/students/${student.id}`}
+      refreshKey="student"
+      documents={student.documents}
+      types={STUDENT_DOCUMENT_TYPES}
+      canManage={manage}
+    />
+  );
+
   return (
-    <div className="max-w-5xl">
+    <div className="mx-auto max-w-5xl">
       <Link
         to="/admin/students"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-brand-navy hover:underline"
+        className="mb-3 inline-flex items-center gap-1 text-sm text-brand-navy hover:underline"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All students
       </Link>
-      <div className="mb-6 flex flex-wrap items-center gap-4">
-        <div className="relative">
-          {photo ? (
-            <img
-              src={photo}
-              alt={student.fullName}
-              className="h-20 w-20 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-navy/10 text-brand-navy">
-              <UserRound className="h-10 w-10" aria-hidden="true" />
-            </div>
-          )}
-          {manage && (
-            <>
-              <input
-                ref={photoInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  void onPhoto(e.target.files?.[0]);
-                  e.target.value = '';
-                }}
+
+      {/* Header card */}
+      <div className="relative mb-3 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-100/70 p-3.5 ring-1 ring-blue-100 sm:mb-4 sm:p-5">
+        <span
+          className="pointer-events-none absolute -bottom-12 right-6 h-40 w-40 rounded-full bg-blue-200/30 blur-2xl"
+          aria-hidden="true"
+        />
+        <div className="relative flex items-start gap-3 sm:gap-5">
+          <div className="relative shrink-0">
+            {photo ? (
+              <img
+                src={photo}
+                alt={student.fullName}
+                className="h-[72px] w-[72px] rounded-full object-cover shadow-md ring-4 ring-white sm:h-24 sm:w-24"
               />
-              <button
-                onClick={() => photoInput.current?.click()}
-                className="absolute -bottom-1 -right-1 rounded-full bg-brand-gold p-1.5 text-brand-navy-dark shadow"
-                aria-label="Change photo"
-              >
-                <Camera className="h-4 w-4" />
-              </button>
-            </>
-          )}
-        </div>
-        <div className="min-w-0 flex-1 basis-48">
-          <h1 className="text-xl font-bold text-brand-navy sm:text-2xl">{student.fullName}</h1>
-          <p className="text-sm text-ink-muted">
-            {student.admissionNumber} ·{' '}
-            <Badge tone={STATUS_TONE[student.status]}>
-              {STUDENT_STATUS_LABELS[student.status]}
-            </Badge>
-            {current && (
+            ) : (
+              <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-white text-brand-navy shadow-md ring-4 ring-white sm:h-24 sm:w-24">
+                <UserRound className="h-9 w-9 sm:h-11 sm:w-11" aria-hidden="true" />
+              </div>
+            )}
+            {manage && (
               <>
-                {' '}
-                · {current.className} – {current.sectionName}
-                {current.rollNumber ? ` · Roll ${current.rollNumber}` : ''} (
-                {current.academicYear.name})
+                <input
+                  ref={photoInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    void onPhoto(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  onClick={() => photoInput.current?.click()}
+                  className="absolute -bottom-0.5 -right-0.5 rounded-full bg-brand-gold p-1.5 text-brand-navy-dark shadow ring-2 ring-white"
+                  aria-label="Change photo"
+                >
+                  <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
               </>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            {/* Room for the Edit button on the name lines only. */}
+            <div className={manage ? 'pr-16 sm:pr-24' : ''}>
+              <h1 className="text-lg font-bold leading-tight text-brand-navy sm:text-2xl">
+                {student.fullName}
+              </h1>
+              <p className="text-xs text-ink-muted sm:text-sm">{student.admissionNumber}</p>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <HeaderPill className={STATUS_PILL[student.status]}>
+                {STUDENT_STATUS_LABELS[student.status]}
+              </HeaderPill>
+              {current && (
+                <HeaderPill icon={GraduationCap}>
+                  {current.className} – {current.sectionName}
+                </HeaderPill>
+              )}
+              {current?.rollNumber && (
+                <HeaderPill icon={UsersRound}>Roll {current.rollNumber}</HeaderPill>
+              )}
+            </div>
+            {current && (
+              <p className="mt-1.5 text-xs text-ink-muted sm:text-sm">
+                Academic year: {current.academicYear.name}
+              </p>
             )}
             {student.enquiry && (
-              <>
-                {' '}
-                · from enquiry <span className="font-mono">{student.enquiry.referenceNumber}</span>
-              </>
+              <p className="text-xs text-ink-muted">
+                From enquiry <span className="font-mono">{student.enquiry.referenceNumber}</span>
+              </p>
             )}
-          </p>
+          </div>
         </div>
         {manage && (
-          <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setEditing(true)}>
-            Edit details
-          </Button>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-ink shadow-sm transition-colors hover:bg-gray-50 sm:right-5 sm:top-5 sm:px-3 sm:text-sm"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit
+          </button>
         )}
       </div>
+
+      {/* Tabs */}
+      <div
+        role="tablist"
+        aria-label="Student sections"
+        className="mb-3 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200/80 sm:mb-4"
+      >
+        {tabs.map(([key, label, Icon]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`flex flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-2 text-[11.5px] font-medium transition-colors sm:gap-1.5 sm:px-3 sm:text-sm ${
+              tab === key
+                ? 'bg-brand-navy text-white shadow-sm'
+                : 'text-ink hover:bg-brand-gold-light hover:text-brand-navy'
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {message && (
-        <div className="mb-4">
+        <div className="mb-3">
           <Alert tone={message.tone}>{message.text}</Alert>
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-5">
-          <h2 className="font-semibold text-brand-navy">Details</h2>
-          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            {[
-              ['Date of birth', formatDate(student.dateOfBirth)],
-              ['Gender', student.gender ? GENDER_LABELS[student.gender] : '—'],
-              ['Blood group', student.bloodGroup ?? '—'],
-              [
-                'Address',
+      {tab === 'overview' && (
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+          <SectionCard icon={UserRound} title="Personal details">
+            <dl className="grid grid-cols-2">
+              {(
                 [
-                  student.addressLine1,
-                  student.addressLine2,
-                  student.city,
-                  student.state,
-                  student.postalCode,
-                ]
-                  .filter(Boolean)
-                  .join(', ') || '—',
-              ],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-ink-muted">{k}</dt>
-                <dd className="text-ink">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
-
-        <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-navy">Parents / guardians</h2>
-            {manage && student.guardians.length < 4 && (
-              <Button size="sm" variant="secondary" onClick={() => setGuardianEdit('new')}>
-                <Plus className="h-4 w-4" aria-hidden="true" /> Add
-              </Button>
-            )}
-          </div>
-          <ul className="mt-3 divide-y divide-gray-100">
-            {student.guardians.map((g) => (
-              <li key={g.id} className="flex items-start justify-between gap-2 py-2">
-                <div className="text-sm">
-                  <p className="font-medium text-ink">
-                    {g.fullName} {g.isPrimary && <Badge tone="gold">Primary</Badge>}
-                  </p>
-                  <p className="text-ink-muted">
-                    {GUARDIAN_RELATIONSHIP_LABELS[g.relationship]} ·{' '}
-                    <a href={`tel:${g.phone}`} className="hover:underline">
-                      {g.phone}
-                    </a>
-                    {g.email ? ` · ${g.email}` : ''}
-                  </p>
+                  [CalendarDays, 'Date of birth', formatDate(student.dateOfBirth)],
+                  [GenderIcon, 'Gender', student.gender ? GENDER_LABELS[student.gender] : '—'],
+                  [Droplet, 'Blood group', student.bloodGroup ?? '—'],
+                  [MapPin, 'Address', address],
+                ] as const
+              ).map(([Icon, label, value], i) => (
+                <div
+                  key={label}
+                  className={`flex gap-2.5 py-2.5 ${i % 2 ? 'border-l border-gray-100 pl-3' : 'pr-3'} ${i < 2 ? 'border-b border-gray-100' : ''}`}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-brand-navy">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] text-ink-muted sm:text-xs">{label}</dt>
+                    <dd className="text-[13px] font-medium text-ink sm:text-sm">{value}</dd>
+                  </div>
                 </div>
-                {manage && (
-                  <Button size="sm" variant="ghost" onClick={() => setGuardianEdit(g)}>
-                    Edit
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
+              ))}
+            </dl>
+          </SectionCard>
 
-        <Card className="p-5 lg:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold text-brand-navy">Enrolment history</h2>
-            {manage && !current && student.status !== 'WITHDRAWN' && (
-              <Button size="sm" onClick={() => setEnrolling(true)}>
-                Enrol in a class
-              </Button>
-            )}
-            {manage && !current && student.status === 'WITHDRAWN' && (
-              <Button size="sm" variant="secondary" onClick={() => setEnrolling(true)}>
-                Re-admit
-              </Button>
-            )}
-          </div>
-          {student.enrolments.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-muted">Not enrolled in any class yet.</p>
-          ) : (
-            <table className="mt-3 min-w-full text-sm">
-              <thead className="text-left text-xs uppercase text-ink-muted">
-                <tr>
-                  <th className="py-2 font-medium">Year</th>
-                  <th className="py-2 font-medium">Class</th>
-                  <th className="py-2 font-medium">Roll</th>
-                  <th className="py-2 font-medium">Status</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {student.enrolments.map((e) => (
-                  <tr key={e.id}>
-                    <td className="py-2 text-ink">{e.academicYear.name}</td>
-                    <td className="py-2 text-ink">
-                      {e.className} – {e.sectionName}
-                    </td>
-                    <td className="py-2 text-ink-muted">{e.rollNumber ?? '—'}</td>
-                    <td className="py-2">
-                      <Badge tone={ENROLMENT_TONE[e.status]}>
-                        {ENROLMENT_STATUS_LABELS[e.status]}
-                      </Badge>
-                      {e.exitDate && (
-                        <span className="ml-2 text-xs text-ink-muted">
-                          {formatDate(e.exitDate)}
-                          {e.exitReason ? ` — ${e.exitReason}` : ''}
+          <SectionCard
+            icon={UsersRound}
+            title="Parents / guardians"
+            actions={
+              manage &&
+              student.guardians.length < 4 && (
+                <Button size="sm" variant="secondary" onClick={() => setGuardianEdit('new')}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> Add
+                </Button>
+              )
+            }
+          >
+            <ul className="divide-y divide-gray-100">
+              {student.guardians.map((g) => (
+                <li key={g.id} className="flex items-center gap-2.5 py-2.5 first:pt-0 last:pb-0">
+                  <InitialsAvatar name={g.fullName} className="h-10 w-10 text-xs" />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm font-semibold text-brand-navy">
+                      <span className="truncate">{g.fullName}</span>
+                      {g.isPrimary && (
+                        <span className="rounded-full bg-brand-gold-light px-1.5 py-px text-[10.5px] font-semibold text-brand-gold-dark">
+                          Primary
                         </span>
                       )}
-                    </td>
-                    <td className="whitespace-nowrap py-2 text-right">
-                      {e.status === 'ACTIVE' && manage && (
-                        <Button size="sm" variant="ghost" onClick={() => setChanging(e)}>
-                          Change section
-                        </Button>
-                      )}
-                      {e.status === 'ACTIVE' && lifecycle && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setExiting({ enrolment: e, kind: 'transfer' })}
-                          >
-                            Transfer
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setExiting({ enrolment: e, kind: 'withdraw' })}
-                          >
-                            Withdraw
-                          </Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </p>
+                    <p className="truncate text-xs text-ink-muted">
+                      {GUARDIAN_RELATIONSHIP_LABELS[g.relationship]} · {g.phone}
+                      {g.email ? ` · ${g.email}` : ''}
+                    </p>
+                  </div>
+                  <a
+                    href={`tel:${g.phone}`}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-brand-navy shadow-sm transition-colors hover:bg-gray-50"
+                    aria-label={`Call ${g.fullName}`}
+                  >
+                    <Phone className="h-4 w-4" aria-hidden="true" />
+                  </a>
+                  {manage && (
+                    <button
+                      type="button"
+                      onClick={() => setGuardianEdit(g)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-brand-navy shadow-sm transition-colors hover:bg-gray-50"
+                      aria-label={`Edit ${g.fullName}`}
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
+
+          <SectionCard
+            icon={GraduationCap}
+            title="Enrolment history"
+            className="lg:col-span-2"
+            actions={
+              manage &&
+              !current && (
+                <Button
+                  size="sm"
+                  variant={student.status === 'WITHDRAWN' ? 'secondary' : 'primary'}
+                  onClick={() => setEnrolling(true)}
+                >
+                  {student.status === 'WITHDRAWN' ? 'Re-admit' : 'Enrol in a class'}
+                </Button>
+              )
+            }
+          >
+            {student.enrolments.length === 0 ? (
+              <p className="text-sm text-ink-muted">Not enrolled in any class yet.</p>
+            ) : (
+              <div className="rounded-lg ring-1 ring-gray-200 [&_thead_th:first-child]:rounded-tl-lg [&_thead_th:last-child]:rounded-tr-lg">
+                <table data-fit className="min-w-full whitespace-nowrap text-[13px] sm:text-sm">
+                  <thead className="bg-surface text-left text-xs text-ink">
+                    <tr>
+                      <th className="px-2 py-2 font-semibold sm:px-3">
+                        <span className="sm:hidden">Year</span>
+                        <span className="hidden sm:inline">Academic year</span>
+                      </th>
+                      <th className="px-2 py-2 font-semibold sm:px-3">Class</th>
+                      <th className="px-2 py-2 font-semibold sm:px-3">Roll</th>
+                      <th className="px-2 py-2 font-semibold sm:px-3">Status</th>
+                      {(manage || lifecycle) && <th className="w-8" aria-label="Actions" />}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {student.enrolments.map((e) => {
+                      const items: RowMenuItem[] =
+                        e.status === 'ACTIVE'
+                          ? [
+                              ...(manage
+                                ? [
+                                    {
+                                      label: 'Change section',
+                                      icon: ArrowLeftRight,
+                                      onSelect: () => setChanging(e),
+                                    },
+                                  ]
+                                : []),
+                              ...(lifecycle
+                                ? [
+                                    {
+                                      label: 'Transfer',
+                                      icon: LogOut,
+                                      onSelect: () =>
+                                        setExiting({ enrolment: e, kind: 'transfer' }),
+                                    },
+                                    {
+                                      label: 'Withdraw',
+                                      icon: UserX,
+                                      danger: true,
+                                      onSelect: () =>
+                                        setExiting({ enrolment: e, kind: 'withdraw' }),
+                                    },
+                                  ]
+                                : []),
+                            ]
+                          : [];
+                      return (
+                        <tr key={e.id}>
+                          <td className="px-2 py-2.5 text-ink sm:px-3">{e.academicYear.name}</td>
+                          <td className="px-2 py-2.5 text-ink sm:px-3">
+                            {e.className} – {e.sectionName}
+                          </td>
+                          <td className="px-2 py-2.5 text-ink sm:px-3">{e.rollNumber ?? '—'}</td>
+                          <td className="px-2 py-2.5 sm:px-3">
+                            <span
+                              className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold sm:text-xs ${ENROLMENT_PILL[e.status]}`}
+                            >
+                              {ENROLMENT_STATUS_LABELS[e.status]}
+                            </span>
+                            {e.exitDate && (
+                              <span className="mt-0.5 block whitespace-normal text-[11px] text-ink-muted">
+                                {formatDate(e.exitDate)}
+                                {e.exitReason ? ` — ${e.exitReason}` : ''}
+                              </span>
+                            )}
+                          </td>
+                          {(manage || lifecycle) && (
+                            <td className="px-1 py-2.5 text-right">
+                              {items.length > 0 && (
+                                <RowMenu
+                                  label={`Actions for ${e.academicYear.name}`}
+                                  items={items}
+                                />
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SectionCard>
+
+          {feeCard}
+          {seeAttendance && (
+            <StudentAttendanceCard
+              studentId={student.id}
+              summary
+              onMore={() => setTab('attendance')}
+            />
           )}
-        </Card>
-
-        {can(PERMISSIONS.FEES_READ) && (
-          <div className="lg:col-span-2">
-            <StudentFeeCard studentId={student.id} />
-          </div>
-        )}
-
-        {can(PERMISSIONS.ATTENDANCE_READ) && (
-          <div className="lg:col-span-2">
-            <StudentAttendanceCard studentId={student.id} />
-          </div>
-        )}
-
-        <div className="lg:col-span-2">
-          <DocumentsPanel
-            basePath={`/students/${student.id}`}
-            refreshKey="student"
-            documents={student.documents}
-            types={STUDENT_DOCUMENT_TYPES}
-            canManage={manage}
-          />
+          <div className="lg:col-span-2">{documents}</div>
         </div>
-      </div>
+      )}
+      {tab === 'fees' && feeCard}
+      {tab === 'attendance' && seeAttendance && <StudentAttendanceCard studentId={student.id} />}
+      {tab === 'documents' && documents}
 
       {editing && <EditStudentModal student={student} onClose={() => setEditing(false)} />}
       {guardianEdit && (

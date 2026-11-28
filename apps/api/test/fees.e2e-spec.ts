@@ -436,6 +436,9 @@ describe('Fees, payments & receipts (e2e)', () => {
 
       const summary = (await api('get', '/fees/summary').expect(200)).body;
       expect(summary).toMatchObject({ collectedToday: 5700, receiptsToday: 2, chequesPending: 0 });
+      // The year's totals for the dashboard: billed − collected = outstanding.
+      expect(summary.year).toMatchObject({ collected: 5700 });
+      expect(summary.year.billed - summary.year.collected).toBe(summary.year.outstanding);
     });
 
     it('limits who can collect, adjust and void', async () => {

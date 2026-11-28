@@ -477,6 +477,14 @@ export interface FeeSummary {
   receiptsToday: number;
   overdueBalance: number;
   chequesPending: number;
+  /** Current academic year so far: billed (after fines and reductions), collected, still owed. */
+  year: {
+    name: string;
+    billed: number;
+    collected: number;
+    outstanding: number;
+    overdue: number;
+  } | null;
 }
 
 // --- Amount in words (Indian system) ----------------------------------------------------------

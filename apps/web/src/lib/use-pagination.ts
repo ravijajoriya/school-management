@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 /** Rows-per-page choices for tables (the API allows at most 100). */
-export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+export const PAGE_SIZE_OPTIONS = [2, 10, 20, 50, 100] as const;
 const STORAGE_PREFIX = 'pageSize:';
 
 function stored(key: string, fallback: number, options: readonly number[]): number {

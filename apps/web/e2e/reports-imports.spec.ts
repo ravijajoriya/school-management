@@ -96,8 +96,8 @@ test.describe('Reports, exports & data import', () => {
     // The dashboard counts them; the reports page shows class strength and downloads Excel.
     await navTo(page, 'Dashboard');
     await expect(page).toHaveURL(/\/admin$/);
-    const students = page.getByRole('region', { name: 'Students & admissions' });
-    await expect(students.getByText(/^Students \(/)).toBeVisible();
+    const students = page.getByRole('region', { name: 'Students & Admissions' });
+    await expect(students.getByText('Students', { exact: true })).toBeVisible();
     await expect(students).toContainText('2');
 
     await navTo(page, 'Reports & Exports');
@@ -114,7 +114,7 @@ test.describe('Reports, exports & data import', () => {
     // Students list: export what is on screen as CSV.
     await navTo(page, 'Students');
     await expect(page).toHaveURL(/\/admin\/students$/);
-    await expect(page.getByRole('cell', { name: /Aarav Sharma/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Aarav Sharma', exact: true })).toBeVisible();
     const csv = page.waitForEvent('download');
     await page.getByRole('button', { name: 'CSV' }).click();
     const file = await csv;

@@ -475,7 +475,8 @@ export function Pagination({
   onChange,
   pageSize,
   onPageSizeChange,
-  pageSizeOptions = [10, 20, 50, 100],
+  pageSizeOptions = [2, 10, 20, 50, 100],
+  className,
 }: {
   page: number;
   totalPages: number;
@@ -485,14 +486,24 @@ export function Pagination({
   pageSize?: number;
   onPageSizeChange?: (size: number) => void;
   pageSizeOptions?: readonly number[];
+  /** Replaces the default top border (e.g. when the pagination sits in its own card). */
+  className?: string;
 }) {
   const sizeId = useId();
   const size = pageSize ?? (totalPages > 0 ? Math.ceil(total / totalPages) : total);
   const from = total === 0 ? 0 : (page - 1) * size + 1;
   const to = Math.min(page * size, total);
+  const last = Math.max(totalPages, 1);
+  // Phones: counts and rows-per-page on one line, the page buttons centred below.
+  const navButton = 'min-w-[6.5rem] text-sm sm:min-w-0 sm:px-3 sm:py-1.5 sm:text-xs';
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 px-4 py-3 text-sm text-ink-muted">
-      <div className="flex flex-wrap items-center gap-4">
+    <div
+      className={cx(
+        'flex flex-col gap-3 px-3 py-3 text-xs text-ink-muted sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4 sm:text-sm',
+        className ?? 'border-t border-gray-200',
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-2 sm:justify-start sm:gap-x-4">
         <span aria-live="polite">
           {total === 0 ? (
             'No records'
@@ -506,13 +517,13 @@ export function Pagination({
           )}
         </span>
         {onPageSizeChange && pageSize !== undefined && (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 border-l border-gray-200 pl-2.5 sm:gap-2 sm:pl-4">
             <label htmlFor={sizeId}>Rows per page</label>
             <select
               id={sizeId}
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="keep-width rounded-md border border-gray-300 bg-white px-2 py-1 text-base text-ink focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40 sm:text-sm"
+              className="keep-width rounded-md border border-gray-300 bg-white px-1 py-1 text-base sm:px-2 text-ink focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40 sm:text-sm"
             >
               {pageSizeOptions.map((n) => (
                 <option key={n} value={n}>
@@ -523,21 +534,21 @@ export function Pagination({
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-3 sm:gap-2">
         <Button
-          size="sm"
           variant="secondary"
+          className={navButton}
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
         >
           Previous
         </Button>
-        <span>
-          Page {Math.min(page, Math.max(totalPages, 1))} of {Math.max(totalPages, 1)}
+        <span className="whitespace-nowrap text-sm">
+          Page <strong className="font-semibold text-ink">{Math.min(page, last)}</strong> of{' '}
+          <strong className="font-semibold text-ink">{last}</strong>
         </span>
         <Button
-          size="sm"
-          variant="secondary"
+          className={navButton}
           disabled={page >= totalPages}
           onClick={() => onChange(page + 1)}
         >

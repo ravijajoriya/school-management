@@ -207,7 +207,7 @@ export class FeeReportsService {
 
   async summary(): Promise<FeeSummary> {
     const today = schoolDate();
-    const [todays, overdueDues, chequesPending] = await Promise.all([
+    const [todays, overdueDues, chequesPending, activeYear] = await Promise.all([
       this.prisma.payment.findMany({
         where: { paymentDate: dayToDate(today), status: 'POSTED' },
         select: { amountReceived: true },
@@ -221,13 +221,28 @@ export class FeeReportsService {
         include: dueInclude,
       }),
       this.prisma.payment.count({ where: { status: 'POSTED', chequeStatus: 'PENDING' } }),
+      this.prisma.academicYear.findFirst({
+        where: { isActive: true },
+        select: { name: true, feeDues: { include: dueInclude } },
+      }),
     ]);
+    const year = activeYear ? ledgerTotals(activeYear.feeDues, today) : null;
     return {
       today,
       collectedToday: rupees(todays.reduce((s, p) => s + toPaise(p.amountReceived), 0)),
       receiptsToday: todays.length,
       overdueBalance: rupees(overdueDues.reduce((s, d) => s + Math.max(dueMath(d).balance, 0), 0)),
       chequesPending,
+      year:
+        activeYear && year
+          ? {
+              name: activeYear.name,
+              billed: rupees(toPaise(year.billed) + toPaise(year.fines) - toPaise(year.reductions)),
+              collected: year.paid,
+              outstanding: year.balance,
+              overdue: year.overdue,
+            }
+          : null,
     };
   }
 }

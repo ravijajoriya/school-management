@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   AUDIT_ACTIONS,
+  LEAVE_STATUSES,
   leaveDays,
   type CreateLeaveRequestInput,
   type LeaveRequestItem,
@@ -189,6 +190,25 @@ export class LeaveService {
     const where: Prisma.LeaveRequestWhereInput = {
       status: query.status,
       employeeId: query.employeeId,
+      leaveType: query.leaveType,
+      ...(query.department
+        ? { employee: { department: { equals: query.department, mode: 'insensitive' as const } } }
+        : {}),
+      ...(query.search
+        ? {
+            AND: query.search
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((word) => ({
+                OR: [
+                  { employee: { firstName: { contains: word, mode: 'insensitive' as const } } },
+                  { employee: { lastName: { contains: word, mode: 'insensitive' as const } } },
+                  { employee: { employeeCode: { contains: word, mode: 'insensitive' as const } } },
+                  { reason: { contains: word, mode: 'insensitive' as const } },
+                ],
+              })),
+          }
+        : {}),
       ...(query.to ? { startDate: { lte: dayToDate(query.to) } } : {}),
       ...(query.from ? { endDate: { gte: dayToDate(query.from) } } : {}),
     };
@@ -212,17 +232,41 @@ export class LeaveService {
   }
 
   async summary(): Promise<LeaveSummary> {
-    const today = dayToDate(schoolDate());
-    const [pending, onLeave] = await Promise.all([
-      this.prisma.leaveRequest.count({ where: { status: 'PENDING' } }),
+    const todayIso = schoolDate();
+    const today = dayToDate(todayIso);
+    const monthStart = dayToDate(`${todayIso.slice(0, 7)}-01`);
+    const monthEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+    const [groups, thisMonth, departments, onLeave] = await Promise.all([
+      this.prisma.leaveRequest.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.leaveRequest.count({
+        where: {
+          status: { not: 'CANCELLED' },
+          startDate: { lte: monthEnd },
+          endDate: { gte: monthStart },
+        },
+      }),
+      this.prisma.employee.findMany({
+        where: { department: { not: null } },
+        select: { department: true },
+        distinct: ['department'],
+        orderBy: { department: 'asc' },
+      }),
       this.prisma.leaveRequest.findMany({
         where: { status: 'APPROVED', startDate: { lte: today }, endDate: { gte: today } },
         include,
         orderBy: { endDate: 'asc' },
       }),
     ]);
+    const byStatus = Object.fromEntries(LEAVE_STATUSES.map((st) => [st, 0])) as Record<
+      LeaveStatus,
+      number
+    >;
+    for (const g of groups) byStatus[g.status as LeaveStatus] = g._count._all;
     return {
-      pending,
+      pending: byStatus.PENDING,
+      byStatus,
+      thisMonth,
+      departments: departments.map((d) => d.department!).filter((d) => d.trim()),
       onLeaveToday: onLeave.map((r) => ({
         employeeId: r.employee.id,
         fullName: fullName(r.employee.firstName, r.employee.lastName),

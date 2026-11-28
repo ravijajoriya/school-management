@@ -1,7 +1,8 @@
 import { DOCUMENT_TYPE_LABELS, type DocumentItem } from '@school/shared';
 import { Download, FileText, Trash2, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Alert, Button, Card, Select } from '@/components/ui';
+import { SectionCard } from '@/components/common/SectionCard';
+import { Alert, Button, Select } from '@/components/ui';
 import { errorMessages } from '@/lib/api-client';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { downloadPrivateFile, useDocumentActions } from '../people-api';
@@ -40,9 +41,8 @@ export function DocumentsPanel({
   };
 
   return (
-    <Card className="p-5">
-      <h2 className="font-semibold text-brand-navy">Documents</h2>
-      <p className="text-xs text-ink-muted">
+    <SectionCard icon={FileText} title="Documents">
+      <p className="-mt-1 text-xs text-ink-muted">
         Private — only staff with permission can download. PDF, JPEG or PNG up to 10 MB.
       </p>
       {error && (
@@ -51,9 +51,9 @@ export function DocumentsPanel({
         </div>
       )}
       {canManage && (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex gap-2">
           <Select
-            className="max-w-[220px]"
+            className="min-w-0 flex-1 sm:max-w-xs"
             value={type}
             onChange={(e) => setType(e.target.value)}
             aria-label="Document type"
@@ -76,6 +76,7 @@ export function DocumentsPanel({
           />
           <Button
             variant="secondary"
+            className="shrink-0"
             onClick={() => input.current?.click()}
             loading={upload.isPending}
           >
@@ -84,7 +85,9 @@ export function DocumentsPanel({
         </div>
       )}
       {documents.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-muted">No documents uploaded.</p>
+        <p className="mt-3 flex items-center gap-2.5 rounded-lg border border-dashed border-gray-300 px-3.5 py-3 text-sm text-ink-muted">
+          <FileText className="h-4 w-4 shrink-0" aria-hidden="true" /> No documents uploaded.
+        </p>
       ) : (
         <ul className="mt-3 divide-y divide-gray-100">
           {documents.map((d) => (
@@ -139,6 +142,6 @@ export function DocumentsPanel({
           ))}
         </ul>
       )}
-    </Card>
+    </SectionCard>
   );
 }
