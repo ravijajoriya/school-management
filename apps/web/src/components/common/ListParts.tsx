@@ -193,8 +193,12 @@ export interface RowMenuItem {
   icon: LucideIcon;
   /** In-app link … */
   to?: string;
-  /** … or a plain link (tel:, mailto:). */
+  /** … or a plain link (tel:, mailto:) … */
   href?: string;
+  /** … or an action. */
+  onSelect?: () => void;
+  /** Shown in red (destructive actions). */
+  danger?: boolean;
 }
 
 /** ⋮ menu for a row or card. The card should carry `has-[[aria-expanded=true]]:z-30`. */
@@ -240,17 +244,41 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
           onClick={(e) => e.stopPropagation()}
           className="absolute right-0 top-9 z-20 w-48 animate-slide-down overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl shadow-brand-navy/10"
         >
-          {items.map(({ label: text, icon: Icon, to, href }) =>
-            to ? (
-              <Link key={text} role="menuitem" to={to} className={itemClass}>
-                <Icon className="h-4 w-4 text-ink-muted" aria-hidden="true" /> {text}
-              </Link>
-            ) : (
-              <a key={text} role="menuitem" href={href} className={itemClass}>
-                <Icon className="h-4 w-4 text-ink-muted" aria-hidden="true" /> {text}
+          {items.map(({ label: text, icon: Icon, to, href, onSelect, danger }) => {
+            const cls = `${itemClass} ${danger ? 'text-red-700 hover:bg-red-50' : ''}`;
+            const icon = (
+              <Icon
+                className={`h-4 w-4 ${danger ? 'text-red-600' : 'text-ink-muted'}`}
+                aria-hidden="true"
+              />
+            );
+            if (to)
+              return (
+                <Link key={text} role="menuitem" to={to} className={cls}>
+                  {icon} {text}
+                </Link>
+              );
+            if (onSelect)
+              return (
+                <button
+                  key={text}
+                  type="button"
+                  role="menuitem"
+                  className={cls}
+                  onClick={() => {
+                    setOpen(false);
+                    onSelect();
+                  }}
+                >
+                  {icon} {text}
+                </button>
+              );
+            return (
+              <a key={text} role="menuitem" href={href} className={cls}>
+                {icon} {text}
               </a>
-            ),
-          )}
+            );
+          })}
         </div>
       )}
     </div>

@@ -112,6 +112,17 @@ test.describe('Academics, staff & students', () => {
     await expect(page.getByRole('heading', { name: 'Aarav Sharma' })).toBeVisible();
     await expect(page.getByText(/ADM-\d{4}-\d{5}/)).toBeVisible();
     await expect(page.getByRole('row', { name: /Class 1 – A/ })).toContainText('Studying');
+    // Header pills and tabs on the student page.
+    await expect(page.getByText('Class 1 – A', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.getByRole('tab', { name: 'Documents' }).click();
+    await expect(page.getByRole('heading', { name: 'Documents' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Personal details' })).toHaveCount(0);
+    await page.getByRole('tab', { name: 'Overview' }).click();
+    await expect(page.getByRole('heading', { name: 'Personal details' })).toBeVisible();
 
     // The list shows the admission month and pending fees (none yet), with filters for both.
     await navTo(page, 'Students');
