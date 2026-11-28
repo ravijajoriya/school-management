@@ -67,6 +67,10 @@ export type ReviewLeaveInput = { remarks?: string };
 export const listLeaveRequestsQuerySchema = paginationQuerySchema.extend({
   status: z.enum(LEAVE_STATUSES).optional(),
   employeeId: uuidSchema.optional(),
+  /** Staff name, employee code or reason (every word must match). */
+  search: z.string().trim().max(100).optional(),
+  leaveType: z.enum(LEAVE_TYPES).optional(),
+  department: z.string().trim().max(100).optional(),
   /** Requests overlapping [from, to]. */
   from: isoDate.optional(),
   to: isoDate.optional(),
@@ -92,6 +96,12 @@ export interface LeaveRequestItem {
 
 export interface LeaveSummary {
   pending: number;
+  /** Requests per status (all time). */
+  byStatus: Record<LeaveStatus, number>;
+  /** Requests (not cancelled) with days in the current month. */
+  thisMonth: number;
+  /** Departments on staff records, for the filter. */
+  departments: string[];
   /** Staff on approved leave today. */
   onLeaveToday: { employeeId: string; fullName: string; leaveType: LeaveType; endDate: string }[];
 }

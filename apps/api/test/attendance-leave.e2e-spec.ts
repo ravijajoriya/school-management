@@ -422,6 +422,20 @@ describe('Attendance & leave (e2e)', () => {
         'APPROVED',
         'CANCELLED',
       ]);
+
+      // Counts for the Staff Leave page, and its search / type / department filters.
+      const counts = (await api('get', '/leave-requests/summary').expect(200)).body;
+      expect(counts.byStatus).toEqual({ PENDING: 0, APPROVED: 1, REJECTED: 0, CANCELLED: 1 });
+      expect(counts.thisMonth).toBe(1);
+      expect(Array.isArray(counts.departments)).toBe(true);
+      const total = (q: string) =>
+        api('get', `/leave-requests?${q}`)
+          .expect(200)
+          .then((r) => r.body.total);
+      expect(await total('search=sunita%20jaipur')).toBe(2);
+      expect(await total('search=verma%20nobody')).toBe(0);
+      expect(await total('leaveType=SICK')).toBe(1);
+      expect(await total('department=Nowhere')).toBe(0);
       expect(await ctx.prisma.auditLog.count({ where: { action: { startsWith: 'leave.' } } })).toBe(
         5,
       );

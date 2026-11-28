@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   LEAVE_STATUS_LABELS,
-  LEAVE_STATUSES,
   LEAVE_TYPE_LABELS,
   LEAVE_TYPES,
   PERMISSIONS,
@@ -10,10 +9,23 @@ import {
   type CreateLeaveRequestInput,
   type LeaveRequestItem,
   type LeaveStatus,
+  type LeaveType,
 } from '@school/shared';
+import {
+  Ban,
+  CalendarDays,
+  Check,
+  CircleCheck,
+  CircleX,
+  Hourglass,
+  Users,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { Link } from 'react-router';
+import { FilterCard, IconSelect, SearchBox } from '@/components/common/ListParts';
+import { HeroCard } from '@/components/common/HeroCard';
 import {
   Alert,
   Button,
@@ -32,6 +44,7 @@ import { errorMessages, splitFieldErrors } from '@/lib/api-client';
 import { formatDate, formatDateTime, todayIso } from '@/lib/format';
 import { leaveDates } from './format';
 import { LeaveStatusBadge } from './LeaveHistoryCard';
+import { LeaveCard, LeaveIllustration, LeaveStatTile } from './LeaveReviewParts';
 import {
   useApplyLeave,
   useCancelLeave,
@@ -42,6 +55,7 @@ import {
 } from './leave-api';
 import { usePagination } from '@/lib/use-pagination';
 import { useConfirm } from '@/lib/dialogs';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 
 const textarea =
   'block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40';
@@ -216,43 +230,94 @@ export function LeaveRequestsPage() {
   const { can } = useAuth();
   const canReview = can(PERMISSIONS.LEAVE_APPROVE);
   const [status, setStatus] = useState<LeaveStatus | ''>('PENDING');
+  const [search, setSearch] = useState('');
+  const [leaveType, setLeaveType] = useState<LeaveType | ''>('');
+  const [department, setDepartment] = useState('');
+  const debounced = useDebouncedValue(search.trim());
   const { page, pageSize, setPage, setPageSize } = usePagination();
-  const list = useLeaveRequests({ status: status || undefined, page, pageSize });
+  const list = useLeaveRequests({
+    status: status || undefined,
+    search: debounced || undefined,
+    leaveType: leaveType || undefined,
+    department: department || undefined,
+    page,
+    pageSize,
+  });
   const summary = useLeaveSummary();
+  const s = summary.data;
   const [reviewing, setReviewing] = useState<{
     item: LeaveRequestItem;
     decision: 'approve' | 'reject';
   } | null>(null);
+  const reset =
+    <T,>(fn: (v: T) => void) =>
+    (v: T) => {
+      fn(v);
+      setPage(1);
+    };
+  const filtered = !!(debounced || leaveType || department);
+  const all = s ? Object.values(s.byStatus).reduce((a, b) => a + b, 0) : null;
+  const tabs: {
+    value: LeaveStatus | '';
+    label: string;
+    icon?: LucideIcon;
+    count: number | null;
+  }[] = [
+    { value: '', label: 'All Requests', count: all },
+    { value: 'PENDING', label: 'Pending', icon: Hourglass, count: s?.byStatus.PENDING ?? null },
+    {
+      value: 'APPROVED',
+      label: 'Approved',
+      icon: CircleCheck,
+      count: s?.byStatus.APPROVED ?? null,
+    },
+    { value: 'REJECTED', label: 'Rejected', icon: CircleX, count: s?.byStatus.REJECTED ?? null },
+    ...(s?.byStatus.CANCELLED
+      ? [
+          {
+            value: 'CANCELLED' as const,
+            label: 'Cancelled',
+            icon: Ban,
+            count: s.byStatus.CANCELLED,
+          },
+        ]
+      : []),
+  ];
+  const items = list.data?.items ?? [];
+  const [month] = useState(() =>
+    new Intl.DateTimeFormat('en-IN', { month: 'long', timeZone: 'Asia/Kolkata' }).format(
+      new Date(),
+    ),
+  );
 
   return (
-    <div>
-      <PageHeader
-        title="Staff leave"
+    <div className="mx-auto max-w-7xl">
+      <HeroCard
+        title="Staff Leave"
         description="Approve or reject leave requests. Teachers see the decision in their portal."
-        actions={
-          <Select
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value as LeaveStatus | '');
-              setPage(1);
-            }}
-            aria-label="Filter by status"
-            className="max-w-[180px]"
-          >
-            <option value="">All requests</option>
-            {LEAVE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {LEAVE_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-        }
+        illustration={<LeaveIllustration />}
       />
-      {summary.data && summary.data.onLeaveToday.length > 0 && (
-        <div className="mb-4">
+
+      {s && (
+        <div className="mb-3 grid grid-cols-4 gap-2 sm:mb-4 sm:gap-4">
+          <LeaveStatTile icon={Hourglass} tone="amber" value={s.byStatus.PENDING} label="Pending" />
+          <LeaveStatTile icon={Check} tone="green" value={s.byStatus.APPROVED} label="Approved" />
+          <LeaveStatTile icon={X} tone="red" value={s.byStatus.REJECTED} label="Rejected" />
+          <LeaveStatTile
+            icon={CalendarDays}
+            tone="blue"
+            value={s.thisMonth}
+            label="This Month"
+            title={`Requests (not cancelled) with leave days in ${month}`}
+          />
+        </div>
+      )}
+
+      {s && s.onLeaveToday.length > 0 && (
+        <div className="mb-3 sm:mb-4">
           <Alert tone="info">
             On leave today:{' '}
-            {summary.data.onLeaveToday
+            {s.onLeaveToday
               .map(
                 (p) =>
                   `${p.fullName} (${LEAVE_TYPE_LABELS[p.leaveType].toLowerCase()}, until ${formatDate(p.endDate)})`,
@@ -261,80 +326,104 @@ export function LeaveRequestsPage() {
           </Alert>
         </div>
       )}
-      <Card>
-        {list.isLoading ? (
-          <PageSpinner />
-        ) : !list.data?.items.length ? (
-          <EmptyState title={status === 'PENDING' ? 'No pending requests' : 'No leave requests'} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Staff member</th>
-                  <th className="px-4 py-3 font-medium">Leave</th>
-                  <th className="px-4 py-3 font-medium">Reason</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {list.data.items.map((l) => (
-                  <tr key={l.id} aria-label={`${l.employee.fullName}, ${leaveDates(l)}`}>
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/admin/staff/${l.employee.id}`}
-                        className="font-medium text-brand-navy hover:underline"
-                      >
-                        {l.employee.fullName}
-                      </Link>
-                      <div className="text-xs text-ink-muted">
-                        {l.employee.employeeCode} · {l.employee.designation}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-ink">{LEAVE_TYPE_LABELS[l.leaveType]}</div>
-                      <div className="text-xs text-ink-muted">
-                        {leaveDates(l)} · {l.days} day{l.days === 1 ? '' : 's'}
-                      </div>
-                    </td>
-                    <td className="max-w-xs px-4 py-3 text-ink-muted">{l.reason}</td>
-                    <td className="px-4 py-3">
-                      <LeaveStatusBadge status={l.status} />
-                      {l.reviewedBy && (
-                        <div className="mt-1 text-xs text-ink-muted">
-                          by {l.reviewedBy.fullName}
-                          {l.reviewRemarks && ` — “${l.reviewRemarks}”`}
-                        </div>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      {canReview && l.status === 'PENDING' && (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => setReviewing({ item: l, decision: 'approve' })}
-                          >
-                            Approve
-                          </Button>{' '}
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setReviewing({ item: l, decision: 'reject' })}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {list.data && list.data.total > 0 && (
+
+      <div
+        role="tablist"
+        aria-label="Filter by status"
+        className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mb-4 sm:gap-2"
+      >
+        {tabs.map((t) => {
+          const active = status === t.value;
+          return (
+            <button
+              key={t.value || 'all'}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => reset(setStatus)(t.value)}
+              className={`inline-flex min-w-max flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-2 text-[11px] sm:flex-none sm:gap-1.5 sm:px-3 font-semibold shadow-sm ring-1 transition-colors sm:text-sm ${
+                active
+                  ? 'bg-brand-navy text-white ring-brand-navy'
+                  : 'bg-white text-ink ring-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {t.icon && <t.icon className="hidden h-4 w-4 min-[420px]:block" aria-hidden="true" />}
+              {t.label}
+              {t.count !== null && ` (${t.count})`}
+            </button>
+          );
+        })}
+      </div>
+
+      <FilterCard id="leave-filters">
+        <SearchBox
+          className="col-span-2"
+          placeholder="Search name, code or reason"
+          value={search}
+          onChange={(e) => reset(setSearch)(e.target.value)}
+          aria-label="Search leave requests"
+        />
+        <IconSelect
+          icon={CalendarDays}
+          value={leaveType}
+          onChange={(e) => reset(setLeaveType)(e.target.value as LeaveType | '')}
+          aria-label="Filter by leave type"
+        >
+          <option value="">Leave type</option>
+          {LEAVE_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {LEAVE_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          icon={Users}
+          value={department}
+          onChange={(e) => reset(setDepartment)(e.target.value)}
+          aria-label="Filter by department"
+        >
+          <option value="">Department</option>
+          {s?.departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </IconSelect>
+      </FilterCard>
+
+      {list.isLoading ? (
+        <PageSpinner />
+      ) : list.isError ? (
+        <Alert>{errorMessages(list.error)[0]}</Alert>
+      ) : !items.length ? (
+        <Card>
+          <EmptyState
+            title={
+              filtered
+                ? 'No leave requests match these filters'
+                : status === 'PENDING'
+                  ? 'No pending requests'
+                  : 'No leave requests'
+            }
+          />
+        </Card>
+      ) : (
+        <ul className="grid gap-3 lg:grid-cols-2 lg:gap-4" aria-label="Leave requests">
+          {items.map((l) => (
+            <LeaveCard
+              key={l.id}
+              leave={l}
+              canReview={canReview}
+              onReview={(decision) => setReviewing({ item: l, decision })}
+            />
+          ))}
+        </ul>
+      )}
+
+      {list.data && list.data.total > 0 && (
+        <Card className="mt-3 sm:mt-4">
           <Pagination
+            className="py-3.5"
             page={list.data.page}
             totalPages={list.data.totalPages}
             total={list.data.total}
@@ -342,8 +431,8 @@ export function LeaveRequestsPage() {
             pageSize={pageSize}
             onPageSizeChange={setPageSize}
           />
-        )}
-      </Card>
+        </Card>
+      )}
       {reviewing && <ReviewModal {...reviewing} onClose={() => setReviewing(null)} />}
     </div>
   );

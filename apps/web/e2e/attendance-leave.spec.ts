@@ -170,7 +170,7 @@ test.describe('Attendance & leave', () => {
     await expect(office.getByRole('link', { name: /Leave requests/i })).toContainText('1');
     await navTo(office, 'Staff Leave');
     await office
-      .getByRole('row', { name: /Sunita Verma/ })
+      .getByRole('listitem', { name: /Sunita Verma/ })
       .getByRole('button', { name: 'Approve' })
       .click();
     const dialog = office.getByRole('dialog', { name: /Approve leave for Sunita Verma/ });
