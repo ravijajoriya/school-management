@@ -114,7 +114,7 @@ test.describe('Reports, exports & data import', () => {
     // Students list: export what is on screen as CSV.
     await navTo(page, 'Students');
     await expect(page).toHaveURL(/\/admin\/students$/);
-    await expect(page.getByRole('cell', { name: /Aarav Sharma/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Aarav Sharma', exact: true })).toBeVisible();
     const csv = page.waitForEvent('download');
     await page.getByRole('button', { name: 'CSV' }).click();
     const file = await csv;

@@ -9,7 +9,6 @@ import {
   STUDENT_STATUS_LABELS,
   STUDENT_STATUSES,
   createStudentSchema,
-  formatRupees,
   type CreateStudentInput,
   type EnrolmentHistoryItem,
   type GuardianItem,
@@ -17,7 +16,23 @@ import {
   type StudentDetail,
   type StudentStatus,
 } from '@school/shared';
-import { ArrowLeft, Camera, Plus, Trash2, UserRound } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarDays,
+  CalendarRange,
+  Camera,
+  ChevronDown,
+  Coins,
+  Filter,
+  GraduationCap,
+  LayoutGrid,
+  List as ListIcon,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+  Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -59,6 +74,18 @@ import {
 import { AddressFields, EnrolmentFields, StudentFields } from './StudentFormParts';
 import { ExportButtons } from '@/features/reports/components/ExportButtons';
 import { usePagination } from '@/lib/use-pagination';
+import { GraduateIllustration, HeroCard } from '@/components/common/HeroCard';
+import {
+  ClassBadge,
+  FeesPill,
+  IconSelect,
+  StatusDot,
+  StudentAvatar,
+  StudentCard,
+  StudentMenu,
+  StudentTile,
+} from './StudentListParts';
+import { admittedLabel } from './student-format';
 import { useConfirm } from '@/lib/dialogs';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', WITHDRAWN: 'red' } as const;
@@ -68,13 +95,6 @@ const MONTHS = Array.from({ length: 12 }, (_, i) =>
     new Date(Date.UTC(2000, i, 1)),
   ),
 );
-/** "2026-04-12" → "Apr 2026". */
-const admittedLabel = (day: string | null) =>
-  day
-    ? new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
-        new Date(`${day}T00:00:00Z`),
-      )
-    : '—';
 const ENROLMENT_TONE = {
   ACTIVE: 'green',
   PROMOTED: 'navy',
@@ -85,6 +105,8 @@ const ENROLMENT_TONE = {
 } as const;
 
 // --- List ------------------------------------------------------------------------------------
+
+const VIEW_KEY = 'students:view';
 
 export function StudentsPage() {
   const navigate = useNavigate();
@@ -98,6 +120,22 @@ export function StudentsPage() {
   const [admissionYear, setAdmissionYear] = useState('');
   const [admissionMonth, setAdmissionMonth] = useState('');
   const [pendingFees, setPendingFees] = useState<'' | 'YES' | 'NO'>('');
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [view, setViewState] = useState<'list' | 'grid'>(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'list';
+    } catch {
+      return 'list';
+    }
+  });
+  const setView = (v: 'list' | 'grid') => {
+    setViewState(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* private mode */
+    }
+  };
   const { can } = useAuth();
   const seeFees = can(PERMISSIONS.FEES_READ);
   const admissionYears = useAdmissionYears();
@@ -122,45 +160,90 @@ export function StudentsPage() {
       setPage(1);
     };
   const classes = sections.data?.map((c) => c.class) ?? [];
+  const yearName = years.data?.find((y) => y.id === yearId)?.name;
+  const items = list.data?.items ?? [];
   return (
-    <div>
-      <PageHeader
+    <div className="mx-auto max-w-7xl">
+      <HeroCard
         title="Students"
         description="Search students and see their class for the selected academic year."
-        actions={
-          <>
-            <YearPicker yearId={yearId} onChange={reset(setYearId)} years={years.data} />
-            <ExportButtons
-              report="students"
-              params={{
-                academicYearId: yearId || undefined,
-                classId: classId || undefined,
-                sectionId: sectionId || undefined,
-                status: status || undefined,
-                search: search || undefined,
-                admissionYear: admissionYear || undefined,
-                admissionMonth: admissionMonth || undefined,
-                pendingFees: (seeFees && pendingFees) || undefined,
-              }}
-            />
-            <PermissionGate permissions={[PERMISSIONS.STUDENTS_MANAGE]}>
-              <Button onClick={() => navigate('/admin/students/new')}>Register student</Button>
-            </PermissionGate>
-          </>
-        }
+        illustration={<GraduateIllustration />}
       />
-      <Card>
-        <div className="filter-bar flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
-          <Input
-            type="search"
-            placeholder="Name, admission no. or parent phone"
-            className="max-w-xs"
-            value={search}
-            onChange={(e) => reset(setSearch)(e.target.value)}
-            aria-label="Search students"
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3 [&_button]:text-[13px] sm:[&_button]:text-sm">
+        <IconSelect
+          icon={CalendarDays}
+          value={yearId}
+          onChange={(e) => reset(setYearId)(e.target.value)}
+          aria-label="Academic year"
+          className="basis-full sm:w-64 sm:basis-auto"
+        >
+          {years.data?.map((y) => (
+            <option key={y.id} value={y.id}>
+              {y.name}
+              {y.isActive ? ' (current)' : y.status === 'DRAFT' ? ' (upcoming)' : ''}
+            </option>
+          ))}
+        </IconSelect>
+        <ExportButtons
+          size="md"
+          report="students"
+          params={{
+            academicYearId: yearId || undefined,
+            classId: classId || undefined,
+            sectionId: sectionId || undefined,
+            status: status || undefined,
+            search: search || undefined,
+            admissionYear: admissionYear || undefined,
+            admissionMonth: admissionMonth || undefined,
+            pendingFees: (seeFees && pendingFees) || undefined,
+          }}
+        />
+        <PermissionGate permissions={[PERMISSIONS.STUDENTS_MANAGE]}>
+          <Button onClick={() => navigate('/admin/students/new')} className="ml-auto">
+            <Plus className="h-4 w-4" aria-hidden="true" /> Register student
+          </Button>
+        </PermissionGate>
+      </div>
+
+      <Card className="mb-3 sm:mb-4">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          aria-controls="student-filters"
+          className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-5"
+        >
+          <Filter className="h-[18px] w-[18px] shrink-0 text-ink" aria-hidden="true" />
+          <span className="flex-1 text-[15px] font-semibold text-brand-navy sm:text-base">
+            Search &amp; Filters
+          </span>
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-ink-muted transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`}
+            aria-hidden="true"
           />
-          <Select
-            className="max-w-[150px]"
+        </button>
+        <div
+          id="student-filters"
+          hidden={!filtersOpen}
+          className="grid grid-cols-2 gap-2.5 px-4 pb-4 sm:px-5 lg:grid-cols-4"
+        >
+          <div className="relative col-span-2">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              placeholder="Name, admission no. or phone"
+              value={search}
+              onChange={(e) => reset(setSearch)(e.target.value)}
+              aria-label="Search students"
+              className="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-base text-ink placeholder:text-gray-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40 sm:text-sm"
+            />
+          </div>
+          <IconSelect
+            icon={GraduationCap}
             value={classId}
             onChange={(e) => {
               reset(setClassId)(e.target.value);
@@ -175,9 +258,9 @@ export function StudentsPage() {
                 {c.name}
               </option>
             ))}
-          </Select>
-          <Select
-            className="max-w-[160px]"
+          </IconSelect>
+          <IconSelect
+            icon={Users}
             value={sectionId}
             onChange={(e) => reset(setSectionId)(e.target.value)}
             aria-label="Filter by section"
@@ -185,41 +268,41 @@ export function StudentsPage() {
           >
             <option value="">All sections</option>
             {sections.options
-              .filter((s) => !classId || s.classId === classId)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
+              .filter((o) => !classId || o.classId === classId)
+              .map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
                 </option>
               ))}
-          </Select>
-          <Select
-            className="max-w-[150px]"
+          </IconSelect>
+          <IconSelect
+            leading={<StatusDot status={status} />}
             value={status}
             onChange={(e) => reset(setStatus)(e.target.value as StudentStatus | '')}
             aria-label="Filter by status"
           >
             <option value="">Any status</option>
-            {STUDENT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STUDENT_STATUS_LABELS[s]}
+            {STUDENT_STATUSES.map((st) => (
+              <option key={st} value={st}>
+                {STUDENT_STATUS_LABELS[st]}
               </option>
             ))}
-          </Select>
-          <Select
-            className="max-w-[180px]"
+          </IconSelect>
+          <IconSelect
+            icon={CalendarDays}
             value={admissionYear}
             onChange={(e) => reset(setAdmissionYear)(e.target.value)}
             aria-label="Filter by admission year"
           >
-            <option value="">Admitted: any year</option>
+            <option value="">Admitted</option>
             {admissionYears.data?.map((y) => (
               <option key={y} value={y}>
                 Admitted {y}
               </option>
             ))}
-          </Select>
-          <Select
-            className="max-w-[150px]"
+          </IconSelect>
+          <IconSelect
+            icon={CalendarRange}
             value={admissionMonth}
             onChange={(e) => reset(setAdmissionMonth)(e.target.value)}
             aria-label="Filter by admission month"
@@ -230,10 +313,10 @@ export function StudentsPage() {
                 {m}
               </option>
             ))}
-          </Select>
+          </IconSelect>
           {seeFees && (
-            <Select
-              className="max-w-[170px]"
+            <IconSelect
+              icon={Coins}
               value={pendingFees}
               onChange={(e) => reset(setPendingFees)(e.target.value as '' | 'YES' | 'NO')}
               aria-label="Filter by pending fees"
@@ -241,81 +324,149 @@ export function StudentsPage() {
               <option value="">Fees: all</option>
               <option value="YES">Fees pending</option>
               <option value="NO">No fees pending</option>
-            </Select>
+            </IconSelect>
           )}
-          <Checkbox
-            label="Not enrolled this year"
-            checked={notEnrolled}
-            onChange={(e) => reset(setNotEnrolled)(e.target.checked)}
-          />
+          <div className="col-span-2 flex items-center px-1 lg:col-span-1">
+            <Checkbox
+              label="Not enrolled this year"
+              checked={notEnrolled}
+              onChange={(e) => reset(setNotEnrolled)(e.target.checked)}
+            />
+          </div>
         </div>
-        {list.isLoading ? (
-          <PageSpinner />
-        ) : !list.data?.items.length ? (
-          <EmptyState title="No students found" />
-        ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Student</th>
-                <th className="px-4 py-3 font-medium">Class</th>
-                <th className="px-4 py-3 font-medium">Admitted</th>
-                {seeFees && <th className="px-4 py-3 text-right font-medium">Pending fees</th>}
-                <th className="px-4 py-3 font-medium">Parent</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {list.data.items.map((s) => (
-                <tr
-                  key={s.id}
-                  className="cursor-pointer hover:bg-surface/60"
-                  onClick={() => navigate(`/admin/students/${s.id}`)}
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/admin/students/${s.id}`}
-                      className="font-medium text-brand-navy hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {s.fullName}
-                    </Link>
-                    <div className="text-xs text-ink-muted">{s.admissionNumber}</div>
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">
-                    {s.enrolment ? (
-                      `${s.enrolment.className} – ${s.enrolment.sectionName}`
-                    ) : (
-                      <span className="text-amber-700">Not enrolled</span>
+      </Card>
+
+      <Card className="mb-3 flex items-center gap-3 p-3 sm:mb-4 sm:px-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+          <Users className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-bold leading-tight text-brand-navy sm:text-base">
+            {(list.data?.total ?? 0).toLocaleString('en-IN')} Student
+            {list.data?.total === 1 ? '' : 's'}
+          </p>
+          {yearName && <p className="text-xs text-ink-muted">Academic year: {yearName}</p>}
+        </div>
+        <div
+          className="flex shrink-0 rounded-lg bg-white p-0.5 ring-1 ring-gray-200"
+          role="group"
+          aria-label="Layout"
+        >
+          {(
+            [
+              ['list', ListIcon, 'List view'],
+              ['grid', LayoutGrid, 'Grid view'],
+            ] as const
+          ).map(([v, Icon, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              aria-label={label}
+              className={`flex h-8 w-10 items-center justify-center rounded-md transition-colors ${
+                view === v
+                  ? 'bg-brand-navy text-white shadow-sm'
+                  : 'text-ink-muted hover:bg-gray-100'
+              }`}
+            >
+              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {list.isLoading ? (
+        <PageSpinner />
+      ) : !items.length ? (
+        <Card>
+          <EmptyState icon={Users} title="No students found" />
+        </Card>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          {items.map((s) => (
+            <StudentTile key={s.id} student={s} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2.5 md:hidden">
+            {items.map((s) => (
+              <StudentCard key={s.id} student={s} />
+            ))}
+          </div>
+          <Card className="hidden overflow-x-auto md:block">
+            <table className="min-w-full text-sm">
+              <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Student</th>
+                  <th className="px-4 py-3 font-medium">Class</th>
+                  <th className="px-4 py-3 font-medium">Admitted</th>
+                  {seeFees && <th className="px-4 py-3 text-right font-medium">Pending fees</th>}
+                  <th className="px-4 py-3 font-medium">Parent</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-2 py-3" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="cursor-pointer hover:bg-surface/60"
+                    onClick={() => navigate(`/admin/students/${s.id}`)}
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <StudentAvatar name={s.fullName} className="h-9 w-9 text-xs" />
+                        <div className="min-w-0">
+                          <Link
+                            to={`/admin/students/${s.id}`}
+                            className="font-semibold text-brand-navy hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {s.fullName}
+                          </Link>
+                          <div className="text-xs text-ink-muted">{s.admissionNumber}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <ClassBadge student={s} icon={false} />
+                    </td>
+                    <td className="px-4 py-2.5 text-ink-muted">{admittedLabel(s.admissionDate)}</td>
+                    {seeFees && (
+                      <td className="px-4 py-2.5 text-right">
+                        <FeesPill amount={s.pendingFees} />
+                      </td>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">{admittedLabel(s.admissionDate)}</td>
-                  {seeFees && (
-                    <td className="px-4 py-3 text-right">
-                      {s.pendingFees ? (
-                        <span className="font-medium text-red-700">
-                          {formatRupees(s.pendingFees)}
-                        </span>
+                    <td className="px-4 py-2.5 text-ink-muted">
+                      {s.primaryGuardian ? (
+                        <>
+                          <div className="text-ink">{s.primaryGuardian.fullName}</div>
+                          <div className="text-xs">{s.primaryGuardian.phone}</div>
+                        </>
                       ) : (
-                        <span className="text-emerald-700">Nil</span>
+                        '—'
                       )}
                     </td>
-                  )}
-                  <td className="px-4 py-3 text-ink-muted">
-                    {s.primaryGuardian
-                      ? `${s.primaryGuardian.fullName} · ${s.primaryGuardian.phone}`
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={STATUS_TONE[s.status]}>{STUDENT_STATUS_LABELS[s.status]}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {list.data && list.data.total > 0 && (
+                    <td className="px-4 py-2.5">
+                      <Badge tone={STATUS_TONE[s.status]}>{STUDENT_STATUS_LABELS[s.status]}</Badge>
+                    </td>
+                    <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <StudentMenu student={s} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+
+      {list.data && list.data.total > 0 && (
+        <Card className="mt-3 sm:mt-4">
           <Pagination
+            className="py-3.5"
             page={list.data.page}
             totalPages={list.data.totalPages}
             total={list.data.total}
@@ -323,8 +474,8 @@ export function StudentsPage() {
             pageSize={pageSize}
             onPageSizeChange={setPageSize}
           />
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
