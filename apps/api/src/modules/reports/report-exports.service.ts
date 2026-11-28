@@ -193,6 +193,7 @@ export class ReportExportsService {
       params: z.object({
         status: z.enum(EMPLOYEE_STATUSES).optional(),
         department: z.string().max(100).optional(),
+        roleId: uuid.optional(),
         onLeave: z
           .enum(['true', 'false'])
           .optional()
@@ -214,6 +215,11 @@ export class ReportExportsService {
             { header: 'Email', value: (r) => r.email, width: 28 },
             { header: 'Employment', value: (r) => r.employmentType },
             { header: 'Status', value: (r) => r.status },
+            {
+              header: 'Roles',
+              value: (r) => r.roles.map((x) => x.name).join(', ') || null,
+              width: 22,
+            },
             {
               header: 'On leave today',
               value: (r) => (r.onLeave ? `${r.onLeave.startDate} to ${r.onLeave.endDate}` : null),

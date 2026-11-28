@@ -136,6 +136,22 @@ test.describe('Academics, staff & students', () => {
     await navTo(page, 'Staff');
     await page.getByLabel('On leave today').check();
     await expect(page.getByText('Nobody is on leave today')).toBeVisible();
+    await page.getByLabel('On leave today').uncheck();
+    // Role filter: every role with a user (same counts as Roles). The admin login has no staff
+    // record, so the Administrator role explains that instead of showing an empty list silently.
+    const roleFilter = page.getByLabel('Filter by role');
+    await expect(roleFilter.getByRole('option')).toHaveText([
+      'All roles',
+      'Administrator (1)',
+      'Teacher (1)',
+    ]);
+    await roleFilter.selectOption({ label: 'Administrator (1)' });
+    await expect(
+      page.getByText(/1 of 1 user with the Administrator role has no staff record/),
+    ).toBeVisible();
+    await expect(page.getByText('No active staff with the Administrator role')).toBeVisible();
+    await roleFilter.selectOption({ label: 'Teacher (1)' });
+    await expect(page.getByRole('row', { name: /Sunita Verma/ })).toContainText('Teacher');
 
     // 5. The class teacher sees the student in their roster, and nothing else.
     const teacherContext = await browser.newContext();

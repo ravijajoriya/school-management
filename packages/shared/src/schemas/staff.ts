@@ -143,6 +143,8 @@ export const listEmployeesQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),
   status: z.enum(EMPLOYEE_STATUSES).optional(),
   department: z.string().trim().max(100).optional(),
+  /** Only staff whose login has this role. */
+  roleId: uuidSchema.optional(),
   /** Only staff on approved leave today. */
   onLeave: z
     .union([z.boolean(), z.enum(['true', 'false'])])
@@ -172,6 +174,8 @@ export interface EmployeeListItem {
   employmentType: EmploymentType | null;
   status: EmployeeStatus;
   user: { id: string; email: string | null; phone: string | null; status: string } | null;
+  /** Roles of the linked login (empty without a login). */
+  roles: { id: string; name: string }[];
   licenceNumber: string | null;
   licenceExpiry: string | null;
   /** Approved leave covering today (listed first in the staff list). */
@@ -185,6 +189,18 @@ export interface EmployeeDetail extends EmployeeListItem {
   /** Teaching assignments and class-teacher roles in the active academic year. */
   assignments: { sectionLabel: string; subject: string }[];
   classTeacherOf: string[];
+}
+
+/** A role with at least one user, for the staff list filter. */
+export interface StaffRoleOption {
+  id: string;
+  name: string;
+  /** All users with the role (same count as the Roles page). */
+  userCount: number;
+  /** Of those, users linked to a staff record (shown in the filtered list). */
+  staffCount: number;
+  /** Users with the role who have no staff record, so they can't appear in the staff list. */
+  usersWithoutStaff: { id: string; fullName: string; login: string | null; status: string }[];
 }
 
 export interface EmployeeOption {

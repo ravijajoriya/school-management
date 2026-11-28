@@ -16,6 +16,7 @@ import {
   type EmploymentType,
   type ListEmployeesQuery,
   type Paginated,
+  type StaffRoleOption,
   type UpdateEmployeeData,
   type UserCreatedResponse,
 } from '@school/shared';
@@ -47,7 +48,18 @@ const onLeaveWhere = (day: string): Prisma.LeaveRequestWhereInput => ({
 
 const listIncludeOn = (day: string) =>
   ({
-    user: { select: { id: true, email: true, phone: true, status: true } },
+    user: {
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        status: true,
+        roles: {
+          select: { role: { select: { id: true, name: true } } },
+          orderBy: { role: { name: 'asc' } },
+        },
+      },
+    },
     leaveRequests: {
       where: onLeaveWhere(day),
       select: { leaveType: true, startDate: true, endDate: true },
@@ -69,7 +81,10 @@ function toListItem(r: ListRow): EmployeeListItem {
     phone: r.phone,
     employmentType: r.employmentType as EmploymentType | null,
     status: r.status as EmployeeStatus,
-    user: r.user,
+    user: r.user
+      ? { id: r.user.id, email: r.user.email, phone: r.user.phone, status: r.user.status }
+      : null,
+    roles: r.user?.roles.map((x) => x.role) ?? [],
     licenceNumber: r.licenceNumber,
     licenceExpiry: isoDayOrNull(r.licenceExpiry),
     onLeave: r.leaveRequests[0]
@@ -126,6 +141,7 @@ export class EmployeesService {
     const where: Prisma.EmployeeWhereInput = {
       status: query.status,
       department: query.department ? { equals: query.department, mode: 'insensitive' } : undefined,
+      user: query.roleId ? { roles: { some: { roleId: query.roleId } } } : undefined,
       AND: tokens.map((t) => ({
         OR: [
           { firstName: { contains: t, mode: 'insensitive' as const } },
@@ -182,6 +198,50 @@ export class EmployeesService {
       query.page,
       query.pageSize,
     );
+  }
+
+  /**
+   * Every role that has at least one user (counted like the Roles page), with how many of those
+   * users are staff, and the ones without a staff record (they can't show in the staff list).
+   */
+  async roleOptions(): Promise<StaffRoleOption[]> {
+    const roles = await this.prisma.role.findMany({
+      where: { users: { some: {} } },
+      select: {
+        id: true,
+        name: true,
+        users: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phone: true,
+                status: true,
+                employee: { select: { id: true } },
+              },
+            },
+          },
+          orderBy: { user: { fullName: 'asc' } },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+    return roles.map((r) => ({
+      id: r.id,
+      name: r.name,
+      userCount: r.users.length,
+      staffCount: r.users.filter((u) => u.user.employee).length,
+      usersWithoutStaff: r.users
+        .filter((u) => !u.user.employee)
+        .map(({ user: u }) => ({
+          id: u.id,
+          fullName: u.fullName,
+          login: u.email ?? u.phone,
+          status: u.status,
+        })),
+    }));
   }
 
   /** Active staff for dropdowns (class teacher, teacher assignments). */

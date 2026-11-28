@@ -48,6 +48,7 @@ import {
   useEmployees,
   useLinkEmployeeUser,
   useSaveEmployee,
+  useStaffRoleOptions,
 } from '../people-api';
 import { usePagination } from '@/lib/use-pagination';
 import { useConfirm } from '@/lib/dialogs';
@@ -64,12 +65,16 @@ export function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<EmployeeStatus | ''>('ACTIVE');
   const [onLeave, setOnLeave] = useState(false);
+  const [roleId, setRoleId] = useState('');
+  const roles = useStaffRoleOptions();
+  const role = roles.data?.find((r) => r.id === roleId);
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const [adding, setAdding] = useState(false);
   const list = useEmployees({
     search: useDebouncedValue(search),
     status: status || undefined,
     onLeave: onLeave || undefined,
+    roleId: roleId || undefined,
     page,
     pageSize,
   });
@@ -113,6 +118,22 @@ export function EmployeesPage() {
               </option>
             ))}
           </Select>
+          <Select
+            className="max-w-[200px]"
+            value={roleId}
+            onChange={(e) => {
+              setRoleId(e.target.value);
+              setPage(1);
+            }}
+            aria-label="Filter by role"
+          >
+            <option value="">All roles</option>
+            {roles.data?.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} ({r.userCount})
+              </option>
+            ))}
+          </Select>
           <Checkbox
             label="On leave today"
             checked={onLeave}
@@ -122,12 +143,34 @@ export function EmployeesPage() {
             }}
           />
         </div>
+        {role && role.usersWithoutStaff.length > 0 && (
+          <div className="border-b border-gray-200 p-4">
+            <Alert tone="info">
+              {role.usersWithoutStaff.length} of {role.userCount} user
+              {role.userCount === 1 ? '' : 's'} with the {role.name} role{' '}
+              {role.usersWithoutStaff.length === 1 ? 'has' : 'have'} no staff record, so{' '}
+              {role.usersWithoutStaff.length === 1 ? "isn't" : "aren't"} listed here:{' '}
+              <strong>
+                {role.usersWithoutStaff
+                  .map((u) => `${u.fullName}${u.login ? ` (${u.login})` : ''}`)
+                  .join(', ')}
+              </strong>
+              . To list them, add a staff record and use “Link existing login” on it.
+            </Alert>
+          </div>
+        )}
         {list.isLoading ? (
           <PageSpinner />
         ) : !list.data?.items.length ? (
           <EmptyState
             icon={onLeave ? CalendarOff : undefined}
-            title={onLeave ? 'Nobody is on leave today' : 'No staff found'}
+            title={
+              onLeave
+                ? 'Nobody is on leave today'
+                : role
+                  ? `No ${status ? `${EMPLOYEE_STATUS_LABELS[status].toLowerCase()} ` : ''}staff with the ${role.name} role`
+                  : 'No staff found'
+            }
           />
         ) : (
           <table className="min-w-full text-sm">
@@ -136,7 +179,7 @@ export function EmployeesPage() {
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Designation</th>
                 <th className="px-4 py-3 font-medium">Contact</th>
-                <th className="px-4 py-3 font-medium">Login</th>
+                <th className="px-4 py-3 font-medium">Login / role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
@@ -163,7 +206,21 @@ export function EmployeesPage() {
                   </td>
                   <td className="px-4 py-3 text-ink-muted">{e.phone ?? e.email ?? '—'}</td>
                   <td className="px-4 py-3">
-                    {e.user ? <Badge tone="green">Yes</Badge> : <Badge tone="gray">No</Badge>}
+                    {e.user ? (
+                      <div className="flex flex-wrap gap-1">
+                        {e.roles.length ? (
+                          e.roles.map((r) => (
+                            <Badge key={r.id} tone="navy">
+                              {r.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge tone="green">Yes</Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <Badge tone="gray">No login</Badge>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1">

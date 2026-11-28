@@ -380,4 +380,50 @@ describe('Admin panel: vehicle crew, service history, student and staff lists (e
     const onLeave = (await api('get', '/employees?onLeave=true').expect(200)).body;
     expect(onLeave.items.map((e: { firstName: string }) => e.firstName)).toEqual(['Zoya']);
   });
+
+  it('filters staff by role, offering every role that has a user', async () => {
+    const amit = await employee('Amit', 'TGT', { email: 'amit@test.local' });
+    await employee('Bina', 'TGT');
+    const [adminRole, teacherRole] = await Promise.all([
+      ctx.prisma.role.findFirstOrThrow({ where: { name: 'Administrator' } }),
+      ctx.prisma.role.findFirstOrThrow({ where: { name: 'Teacher' } }),
+    ]);
+    await api('post', `/employees/${amit}/create-login`)
+      .send({ roleIds: [teacherRole.id] })
+      .expect(201);
+    // A role nobody has is not offered.
+    await ctx.prisma.role.create({ data: { code: 'LIBRARIAN', name: 'Librarian' } });
+
+    // Same user counts as the Roles page; logins without a staff record are listed separately.
+    const options = (await api('get', '/employees/role-options').expect(200)).body;
+    const roles = (await api('get', '/roles').expect(200)).body as {
+      id: string;
+      userCount: number;
+    }[];
+    expect(
+      options.map((o: { name: string; userCount: number; staffCount: number }) => [
+        o.name,
+        o.userCount,
+        o.staffCount,
+      ]),
+    ).toEqual([
+      ['Administrator', 1, 0],
+      ['Teacher', 2, 1],
+    ]);
+    for (const o of options) expect(o.userCount).toBe(roles.find((r) => r.id === o.id)!.userCount);
+    expect(options[0].usersWithoutStaff).toEqual([
+      expect.objectContaining({ fullName: expect.any(String), login: ADMIN.email }),
+    ]);
+    expect(options[1].usersWithoutStaff.map((u: { login: string }) => u.login)).toEqual([
+      TEACHER.email,
+    ]);
+    await api('get', '/employees/role-options', teacher).expect(403);
+
+    const list = (await api('get', `/employees?roleId=${teacherRole.id}`).expect(200)).body;
+    expect(list.items.map((e: { firstName: string }) => e.firstName)).toEqual(['Amit']);
+    expect(list.items[0].roles).toEqual([{ id: teacherRole.id, name: 'Teacher' }]);
+    expect((await api('get', `/employees?roleId=${adminRole.id}`).expect(200)).body.total).toBe(0);
+    const all = (await api('get', '/employees').expect(200)).body;
+    expect(all.items.find((e: { firstName: string }) => e.firstName === 'Bina').roles).toEqual([]);
+  });
 });

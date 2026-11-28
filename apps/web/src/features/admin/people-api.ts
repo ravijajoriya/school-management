@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  StaffRoleOption,
   AcademicYearItem,
   ClassStructure,
   ClassSubjectItem,
@@ -237,6 +238,13 @@ export function useEmployees(query: Partial<ListEmployeesQuery>) {
     placeholderData: keepPreviousData,
   });
 }
+
+/** Roles held by at least one staff member (staff list filter). */
+export const useStaffRoleOptions = () =>
+  useQuery({
+    queryKey: ['employees', 'role-options'],
+    queryFn: async () => (await apiClient.get<StaffRoleOption[]>('/employees/role-options')).data,
+  });
 
 export function useEmployeeOptions() {
   return useQuery({
