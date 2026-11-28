@@ -16,6 +16,7 @@ import {
   type EmploymentType,
   type ListEmployeesQuery,
   type Paginated,
+  type StaffRoleOption,
   type UpdateEmployeeData,
   type UserCreatedResponse,
 } from '@school/shared';
@@ -33,14 +34,39 @@ import {
   isoDay,
   isoDayOrNull,
   paginated,
+  schoolDate,
 } from '../../common/utils/content.js';
 import { AuditService } from '../audit/audit.service.js';
 import { UsersService } from '../users/users.service.js';
 
-const listInclude = {
-  user: { select: { id: true, email: true, phone: true, status: true } },
-} as const;
-type ListRow = Prisma.EmployeeGetPayload<{ include: typeof listInclude }>;
+/** Approved leave covering `day`. */
+const onLeaveWhere = (day: string): Prisma.LeaveRequestWhereInput => ({
+  status: 'APPROVED',
+  startDate: { lte: dayToDate(day) },
+  endDate: { gte: dayToDate(day) },
+});
+
+const listIncludeOn = (day: string) =>
+  ({
+    user: {
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        status: true,
+        roles: {
+          select: { role: { select: { id: true, name: true } } },
+          orderBy: { role: { name: 'asc' } },
+        },
+      },
+    },
+    leaveRequests: {
+      where: onLeaveWhere(day),
+      select: { leaveType: true, startDate: true, endDate: true },
+      take: 1,
+    },
+  }) satisfies Prisma.EmployeeInclude;
+type ListRow = Prisma.EmployeeGetPayload<{ include: ReturnType<typeof listIncludeOn> }>;
 
 function toListItem(r: ListRow): EmployeeListItem {
   return {
@@ -55,7 +81,19 @@ function toListItem(r: ListRow): EmployeeListItem {
     phone: r.phone,
     employmentType: r.employmentType as EmploymentType | null,
     status: r.status as EmployeeStatus,
-    user: r.user,
+    user: r.user
+      ? { id: r.user.id, email: r.user.email, phone: r.user.phone, status: r.user.status }
+      : null,
+    roles: r.user?.roles.map((x) => x.role) ?? [],
+    licenceNumber: r.licenceNumber,
+    licenceExpiry: isoDayOrNull(r.licenceExpiry),
+    onLeave: r.leaveRequests[0]
+      ? {
+          leaveType: r.leaveRequests[0].leaveType,
+          startDate: isoDay(r.leaveRequests[0].startDate),
+          endDate: isoDay(r.leaveRequests[0].endDate),
+        }
+      : null,
   };
 }
 
@@ -79,6 +117,8 @@ export const toDocument = (d: {
 
 const snapshot = (e: EmployeeListItem) => ({
   employeeCode: e.employeeCode,
+  licenceNumber: e.licenceNumber,
+  licenceExpiry: e.licenceExpiry,
   name: e.fullName,
   designation: e.designation,
   department: e.department,
@@ -101,6 +141,7 @@ export class EmployeesService {
     const where: Prisma.EmployeeWhereInput = {
       status: query.status,
       department: query.department ? { equals: query.department, mode: 'insensitive' } : undefined,
+      user: query.roleId ? { roles: { some: { roleId: query.roleId } } } : undefined,
       AND: tokens.map((t) => ({
         OR: [
           { firstName: { contains: t, mode: 'insensitive' as const } },
@@ -111,17 +152,96 @@ export class EmployeesService {
         ],
       })),
     };
-    const [total, rows] = await this.prisma.$transaction([
-      this.prisma.employee.count({ where }),
-      this.prisma.employee.findMany({
-        where,
-        include: listInclude,
-        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-      }),
+    // Staff on approved leave today are listed first (or only them, with the filter).
+    const today = schoolDate();
+    const onLeaveIds = (
+      await this.prisma.leaveRequest.findMany({
+        where: onLeaveWhere(today),
+        select: { employeeId: true },
+        distinct: ['employeeId'],
+      })
+    ).map((l) => l.employeeId);
+    const include = listIncludeOn(today);
+    const orderBy = [{ firstName: 'asc' as const }, { lastName: 'asc' as const }];
+    const leaveWhere: Prisma.EmployeeWhereInput = { AND: [where, { id: { in: onLeaveIds } }] };
+    const restWhere: Prisma.EmployeeWhereInput = { AND: [where, { id: { notIn: onLeaveIds } }] };
+    const skip = (query.page - 1) * query.pageSize;
+    const take = query.pageSize;
+    if (query.onLeave) {
+      const [total, rows] = await this.prisma.$transaction([
+        this.prisma.employee.count({ where: leaveWhere }),
+        this.prisma.employee.findMany({ where: leaveWhere, include, orderBy, skip, take }),
+      ]);
+      return paginated(rows.map(toListItem), total, query.page, query.pageSize);
+    }
+    const [leaveCount, restCount] = await this.prisma.$transaction([
+      this.prisma.employee.count({ where: leaveWhere }),
+      this.prisma.employee.count({ where: restWhere }),
     ]);
-    return paginated(rows.map(toListItem), total, query.page, query.pageSize);
+    const first =
+      skip < leaveCount
+        ? await this.prisma.employee.findMany({ where: leaveWhere, include, orderBy, skip, take })
+        : [];
+    const rest =
+      first.length < take
+        ? await this.prisma.employee.findMany({
+            where: restWhere,
+            include,
+            orderBy,
+            skip: Math.max(0, skip - leaveCount),
+            take: take - first.length,
+          })
+        : [];
+    return paginated(
+      [...first, ...rest].map(toListItem),
+      leaveCount + restCount,
+      query.page,
+      query.pageSize,
+    );
+  }
+
+  /**
+   * Every role that has at least one user (counted like the Roles page), with how many of those
+   * users are staff, and the ones without a staff record (they can't show in the staff list).
+   */
+  async roleOptions(): Promise<StaffRoleOption[]> {
+    const roles = await this.prisma.role.findMany({
+      where: { users: { some: {} } },
+      select: {
+        id: true,
+        name: true,
+        users: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phone: true,
+                status: true,
+                employee: { select: { id: true } },
+              },
+            },
+          },
+          orderBy: { user: { fullName: 'asc' } },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+    return roles.map((r) => ({
+      id: r.id,
+      name: r.name,
+      userCount: r.users.length,
+      staffCount: r.users.filter((u) => u.user.employee).length,
+      usersWithoutStaff: r.users
+        .filter((u) => !u.user.employee)
+        .map(({ user: u }) => ({
+          id: u.id,
+          fullName: u.fullName,
+          login: u.email ?? u.phone,
+          status: u.status,
+        })),
+    }));
   }
 
   /** Active staff for dropdowns (class teacher, teacher assignments). */
@@ -143,7 +263,7 @@ export class EmployeesService {
     const row = await this.prisma.employee.findUnique({
       where: { id },
       include: {
-        ...listInclude,
+        ...listIncludeOn(schoolDate()),
         documents: {
           orderBy: { createdAt: 'desc' },
           include: { uploader: { select: { id: true, fullName: true } } },
@@ -201,8 +321,10 @@ export class EmployeesService {
           department: input.department ?? null,
           employmentType: input.employmentType ?? null,
           status: input.status,
+          licenceNumber: input.licenceNumber ?? null,
+          licenceExpiry: input.licenceExpiry ? dayToDate(input.licenceExpiry) : null,
         },
-        include: listInclude,
+        include: listIncludeOn(schoolDate()),
       });
       const item = toListItem(row);
       await this.audit.log(
@@ -222,6 +344,20 @@ export class EmployeesService {
 
   async update(id: string, input: UpdateEmployeeData, actor: RequestUser, context: RequestContext) {
     const before = await this.get(id);
+    if (input.status && input.status !== 'ACTIVE') {
+      // An active vehicle always needs its crew: change the vehicle first.
+      const vehicle = await this.prisma.vehicle.findFirst({
+        where: {
+          status: 'ACTIVE',
+          OR: [{ driverEmployeeId: id }, { conductorEmployeeId: id }],
+        },
+        select: { registrationNumber: true, driverEmployeeId: true },
+      });
+      if (vehicle)
+        throw new ConflictException(
+          `${before.fullName} is the ${vehicle.driverEmployeeId === id ? 'driver' : 'conductor'} of ${vehicle.registrationNumber}. Choose a new ${vehicle.driverEmployeeId === id ? 'driver' : 'conductor'} for that vehicle first.`,
+        );
+    }
     return this.prisma.$transaction(async (tx) => {
       const row = await tx.employee.update({
         where: { id },
@@ -242,8 +378,15 @@ export class EmployeesService {
           department: input.department,
           employmentType: input.employmentType,
           status: input.status,
+          licenceNumber: input.licenceNumber,
+          licenceExpiry:
+            input.licenceExpiry === undefined
+              ? undefined
+              : input.licenceExpiry
+                ? dayToDate(input.licenceExpiry)
+                : null,
         },
-        include: listInclude,
+        include: listIncludeOn(schoolDate()),
       });
       const item = toListItem(row);
       await this.audit.log(

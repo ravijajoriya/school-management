@@ -129,6 +129,14 @@ describe('School operations: transport, complaints, meetings, inventory, payroll
 
   it('manages vehicles, routes and stops and assigns students without double-booking', async () => {
     await api('get', '/transport/routes', teacher).expect(403);
+    await api('patch', `/employees/${otherEmp}`)
+      .send({ licenceNumber: 'rj14 20180012345', licenceExpiry: addDays(today, 400) })
+      .expect(200);
+    const conductor = (
+      await api('post', '/employees')
+        .send({ firstName: 'Gopal', designation: 'Conductor', joiningDate: '2019-04-01' })
+        .expect(201)
+    ).body.id;
     const vehicle = (
       await api('post', '/transport/vehicles')
         .send({
@@ -136,12 +144,20 @@ describe('School operations: transport, complaints, meetings, inventory, payroll
           vehicleType: 'Van',
           capacity: 2,
           insuranceExpiry: addDays(today, 10),
+          driverEmployeeId: otherEmp,
+          conductorEmployeeId: conductor,
         })
         .expect(201)
     ).body;
-    expect(vehicle).toMatchObject({ registrationNumber: 'RJ 14 PA 1234', documentsDue: true });
+    expect(vehicle).toMatchObject({
+      registrationNumber: 'RJ 14 PA 1234',
+      documentsDue: true,
+      driver: { fullName: 'Ramesh Yadav', licenceNumber: 'RJ14 20180012345', licenceStatus: 'OK' },
+      conductor: { fullName: 'Gopal' },
+      crewMissing: false,
+    });
     const dup = await api('post', '/transport/vehicles')
-      .send({ registrationNumber: 'RJ 14 PA 1234' })
+      .send({ registrationNumber: 'RJ 14 PA 1234', status: 'INACTIVE' })
       .expect(409);
     expect(dup.body.message).toEqual([
       'registrationNumber: A vehicle with this registration number already exists',
@@ -152,7 +168,6 @@ describe('School operations: transport, complaints, meetings, inventory, payroll
         .send({
           name: 'Route 1 – Vaishali Nagar',
           vehicleId: vehicle.id,
-          driverEmployeeId: otherEmp,
           stops: [
             { name: 'Gandhi Path', pickupTime: '07:05', dropTime: '14:10' },
             { name: 'Amrapali Circle', pickupTime: '07:15' },
@@ -166,7 +181,9 @@ describe('School operations: transport, complaints, meetings, inventory, payroll
       ['Gandhi Path', 1],
       ['Amrapali Circle', 2],
     ]);
-    expect(route.driver.fullName).toBe('Ramesh Yadav');
+    // The crew comes from the vehicle.
+    expect(route.vehicle.driver.fullName).toBe('Ramesh Yadav');
+    expect(route.vehicle.conductor.fullName).toBe('Gopal');
     const [gandhi, amrapali] = route.stops;
     await api('post', '/transport/routes').send({ name: 'route 1 – vaishali nagar' }).expect(409);
     await api('post', '/transport/routes')

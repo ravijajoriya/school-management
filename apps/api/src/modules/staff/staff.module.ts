@@ -66,6 +66,13 @@ export class EmployeesController {
     return this.employees.list(query);
   }
 
+  /** Roles with at least one user, for the staff list filter. */
+  @Get('role-options')
+  @RequirePermissions(PERMISSIONS.EMPLOYEES_READ)
+  roleOptions() {
+    return this.employees.roleOptions();
+  }
+
   /** Active staff names for dropdowns (class teacher, assignments). */
   @Get('options')
   @RequirePermissions(PERMISSIONS.ACADEMICS_READ)

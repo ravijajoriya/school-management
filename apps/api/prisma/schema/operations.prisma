@@ -3,39 +3,102 @@
 
 /// School bus / van. Registration number is unique (stored upper-case).
 model Vehicle {
-  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  registrationNumber String    @unique @map("registration_number") @db.VarChar(30)
-  vehicleType        String?   @map("vehicle_type") @db.VarChar(50)
+  id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  registrationNumber  String    @unique @map("registration_number") @db.VarChar(30)
+  vehicleType         String?   @map("vehicle_type") @db.VarChar(50)
   /// SQL: CHECK (capacity IS NULL OR capacity > 0)
-  capacity           Int?      @db.SmallInt
-  insuranceExpiry    DateTime? @map("insurance_expiry") @db.Date
-  permitExpiry       DateTime? @map("permit_expiry") @db.Date
+  capacity            Int?      @db.SmallInt
+  insuranceExpiry     DateTime? @map("insurance_expiry") @db.Date
+  permitExpiry        DateTime? @map("permit_expiry") @db.Date
   /// SQL: CHECK (status IN ('ACTIVE','INACTIVE'))
-  status             String    @default("ACTIVE") @db.VarChar(20)
-  notes              String?
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status              String    @default("ACTIVE") @db.VarChar(20)
+  notes               String?
+  /// Crew. SQL: an ACTIVE vehicle must have both (CHECK, NOT VALID for older rows);
+  /// driver <> conductor; each person crews at most one active vehicle per role (partial unique).
+  driverEmployeeId    String?   @map("driver_employee_id") @db.Uuid
+  conductorEmployeeId String?   @map("conductor_employee_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  routes TransportRoute[]
+  driver    Employee?        @relation("VehicleDriver", fields: [driverEmployeeId], references: [id], onDelete: Restrict)
+  conductor Employee?        @relation("VehicleConductor", fields: [conductorEmployeeId], references: [id], onDelete: Restrict)
+  routes    TransportRoute[]
+  services  VehicleService[]
 
+  @@index([driverEmployeeId])
+  @@index([conductorEmployeeId])
   @@map("vehicles")
 }
 
-/// Bus route with an optional vehicle, driver and attendant (staff records).
+/// A service / repair visit for a vehicle.
+model VehicleService {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  vehicleId       String    @map("vehicle_id") @db.Uuid
+  serviceDate     DateTime  @map("service_date") @db.Date
+  garageName      String?   @map("garage_name") @db.VarChar(120)
+  /// SQL: CHECK (odometer_km >= 0)
+  odometerKm      Int       @map("odometer_km")
+  /// SQL: CHECK (next_service_km IS NULL OR next_service_km > odometer_km)
+  nextServiceKm   Int?      @map("next_service_km")
+  /// SQL: CHECK (next_service_date IS NULL OR next_service_date > service_date)
+  nextServiceDate DateTime? @map("next_service_date") @db.Date
+  /// SQL: CHECK (labour_cost >= 0)
+  labourCost      Decimal   @default(0) @map("labour_cost") @db.Decimal(12, 2)
+  invoiceNumber   String?   @map("invoice_number") @db.VarChar(60)
+  notes           String?
+  createdBy       String    @map("created_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehicle Vehicle               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  creator User                  @relation("VehicleServiceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  parts   VehicleServicePart[]
+  staff   VehicleServiceStaff[]
+
+  @@index([vehicleId, serviceDate])
+  @@map("vehicle_services")
+}
+
+/// New part fitted during a service. `cost` is the line total.
+model VehicleServicePart {
+  id        String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  serviceId String  @map("service_id") @db.Uuid
+  partName  String  @map("part_name") @db.VarChar(120)
+  /// SQL: CHECK (quantity > 0)
+  quantity  Int     @default(1) @db.SmallInt
+  /// SQL: CHECK (cost >= 0)
+  cost      Decimal @db.Decimal(12, 2)
+
+  service VehicleService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@map("vehicle_service_parts")
+}
+
+/// Staff who took the vehicle for the service.
+model VehicleServiceStaff {
+  serviceId  String @map("service_id") @db.Uuid
+  employeeId String @map("employee_id") @db.Uuid
+
+  service  VehicleService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  employee Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@id([serviceId, employeeId])
+  @@index([employeeId])
+  @@map("vehicle_service_staff")
+}
+
+/// Bus route with an optional vehicle; the driver and conductor come from the vehicle.
 model TransportRoute {
-  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   /// SQL: UNIQUE (lower(name))
-  name                String   @db.VarChar(100)
-  description         String?
-  vehicleId           String?  @map("vehicle_id") @db.Uuid
-  driverEmployeeId    String?  @map("driver_employee_id") @db.Uuid
-  attendantEmployeeId String?  @map("attendant_employee_id") @db.Uuid
-  isActive            Boolean  @default(true) @map("is_active")
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  name        String   @db.VarChar(100)
+  description String?
+  vehicleId   String?  @map("vehicle_id") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   vehicle     Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
-  driver      Employee?          @relation("RouteDriver", fields: [driverEmployeeId], references: [id], onDelete: Restrict)
-  attendant   Employee?          @relation("RouteAttendant", fields: [attendantEmployeeId], references: [id], onDelete: Restrict)
   stops       RouteStop[]
   assignments StudentTransport[]
 

@@ -486,6 +486,9 @@ export const adminRoutes: RouteObject = {
         guarded('transport/vehicles', PERMISSIONS.TRANSPORT_READ, async () => ({
           Component: (await transport()).VehiclesPage,
         })),
+        guarded('transport/vehicles/:id', PERMISSIONS.TRANSPORT_READ, async () => ({
+          Component: (await transport()).VehicleDetailPage,
+        })),
         guarded('transport/routes/:id', PERMISSIONS.TRANSPORT_READ, async () => ({
           Component: (await transport()).RouteSheetPage,
         })),

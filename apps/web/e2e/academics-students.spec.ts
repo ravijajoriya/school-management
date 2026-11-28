@@ -113,6 +113,46 @@ test.describe('Academics, staff & students', () => {
     await expect(page.getByText(/ADM-\d{4}-\d{5}/)).toBeVisible();
     await expect(page.getByRole('row', { name: /Class 1 – A/ })).toContainText('Studying');
 
+    // The list shows the admission month and pending fees (none yet), with filters for both.
+    await navTo(page, 'Students');
+    const admitted = new Intl.DateTimeFormat('en-IN', {
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata',
+    }).format(new Date());
+    const row = page.getByRole('row', { name: /Aarav Sharma/ });
+    await expect(row).toContainText(admitted);
+    await expect(row).toContainText('Nil');
+    await expect(page.getByRole('columnheader', { name: 'Roll' })).toHaveCount(0);
+    await page.getByLabel('Filter by pending fees').selectOption('YES');
+    await expect(page.getByText('No students found')).toBeVisible();
+    await page.getByLabel('Filter by pending fees').selectOption('NO');
+    await page
+      .getByLabel('Filter by admission year')
+      .selectOption(String(new Date().getFullYear()));
+    await expect(page.getByRole('row', { name: /Aarav Sharma/ })).toBeVisible();
+
+    // Staff: nobody is on leave today.
+    await navTo(page, 'Staff');
+    await page.getByLabel('On leave today').check();
+    await expect(page.getByText('Nobody is on leave today')).toBeVisible();
+    await page.getByLabel('On leave today').uncheck();
+    // Role filter: every role with a user (same counts as Roles). The admin login has no staff
+    // record, so the Administrator role explains that instead of showing an empty list silently.
+    const roleFilter = page.getByLabel('Filter by role');
+    await expect(roleFilter.getByRole('option')).toHaveText([
+      'All roles',
+      'Administrator (1)',
+      'Teacher (1)',
+    ]);
+    await roleFilter.selectOption({ label: 'Administrator (1)' });
+    await expect(
+      page.getByText(/1 of 1 user with the Administrator role has no staff record/),
+    ).toBeVisible();
+    await expect(page.getByText('No active staff with the Administrator role')).toBeVisible();
+    await roleFilter.selectOption({ label: 'Teacher (1)' });
+    await expect(page.getByRole('row', { name: /Sunita Verma/ })).toContainText('Teacher');
+
     // 5. The class teacher sees the student in their roster, and nothing else.
     const teacherContext = await browser.newContext();
     const teacher = await teacherContext.newPage();

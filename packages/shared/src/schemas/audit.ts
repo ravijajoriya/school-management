@@ -103,6 +103,8 @@ export const AUDIT_ACTIONS = {
   TIMETABLE_ARCHIVED: 'timetable.archived',
   // Phase 7
   VEHICLE_SAVED: 'vehicle.saved',
+  VEHICLE_SERVICE_SAVED: 'vehicle_service.saved',
+  VEHICLE_SERVICE_DELETED: 'vehicle_service.deleted',
   ROUTE_SAVED: 'transport_route.saved',
   TRANSPORT_ASSIGNED: 'transport.assigned',
   TRANSPORT_ENDED: 'transport.ended',

@@ -22,7 +22,7 @@ import {
   type UpdateGuardianInput,
   type UpdateStudentData,
 } from '@school/shared';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service.js';
 import {
   PrivateFilesService,
@@ -38,6 +38,7 @@ import {
   paginated,
   schoolDate,
 } from '../../common/utils/content.js';
+import { rupees } from '../../common/utils/money.js';
 import { AuditService } from '../audit/audit.service.js';
 import { toDocument } from '../staff/employees.service.js';
 import { EnrolmentsService } from './enrolments.service.js';
@@ -85,7 +86,62 @@ export class StudentsService {
     private readonly enrolments: EnrolmentsService,
   ) {}
 
-  async list(query: ListStudentsQuery): Promise<Paginated<StudentListItem>> {
+  /**
+   * What each student owes now, in paise: the unpaid balance of dues with a due date up to
+   * `today` (or no due date), across all years. Same rule as the fee ledger (fees-core dueMath):
+   * billed + fines − concessions/discounts/waivers − allocations of POSTED payments; a due that is
+   * overpaid counts as zero. Only students who owe something are returned.
+   */
+  async pendingFeesByStudent(today: string, studentIds?: string[]): Promise<Map<string, number>> {
+    if (studentIds && !studentIds.length) return new Map();
+    const rows = await this.prisma.$queryRaw<{ student_id: string; pending: string }[]>`
+      SELECT e.student_id, SUM(GREATEST(b.balance, 0))::text AS pending
+      FROM (
+        SELECT d.id, d.student_enrolment_id,
+          d.amount_due
+          + COALESCE((SELECT SUM(CASE WHEN a.adjustment_type = 'FINE' THEN a.amount ELSE -a.amount END)
+                      FROM fee_adjustments a WHERE a.student_fee_due_id = d.id), 0)
+          - COALESCE((SELECT SUM(pa.allocated_amount)
+                      FROM payment_allocations pa
+                      JOIN payments p ON p.id = pa.payment_id AND p.status = 'POSTED'
+                      WHERE pa.student_fee_due_id = d.id), 0) AS balance
+        FROM student_fee_dues d
+        WHERE d.due_date IS NULL OR d.due_date <= ${dayToDate(today)}
+      ) b
+      JOIN student_enrolments e ON e.id = b.student_enrolment_id
+      ${studentIds ? Prisma.sql`WHERE e.student_id = ANY(${studentIds}::uuid[])` : Prisma.empty}
+      GROUP BY e.student_id
+      HAVING SUM(GREATEST(b.balance, 0)) > 0`;
+    return new Map(rows.map((r) => [r.student_id, Math.round(Number(r.pending) * 100)]));
+  }
+
+  /** Students whose first enrolment falls in the given calendar year and/or month. */
+  private async admittedIn(year?: number, month?: number): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<{ student_id: string }[]>`
+      SELECT student_id FROM student_enrolments
+      GROUP BY student_id
+      HAVING TRUE
+        ${year ? Prisma.sql`AND EXTRACT(YEAR FROM MIN(enrolment_date)) = ${year}` : Prisma.empty}
+        ${month ? Prisma.sql`AND EXTRACT(MONTH FROM MIN(enrolment_date)) = ${month}` : Prisma.empty}`;
+    return rows.map((r) => r.student_id);
+  }
+
+  /** Calendar years in which students were admitted (newest first), for the filter. */
+  async admissionYears(): Promise<number[]> {
+    const rows = await this.prisma.$queryRaw<{ y: number }[]>`
+      SELECT DISTINCT EXTRACT(YEAR FROM first_date)::int AS y
+      FROM (SELECT MIN(enrolment_date) AS first_date FROM student_enrolments GROUP BY student_id) f
+      ORDER BY y DESC`;
+    return rows.map((r) => r.y);
+  }
+
+  /**
+   * `withFees` (the caller can read fees) adds the pending amount and allows the pending filter.
+   */
+  async list(
+    query: ListStudentsQuery,
+    opts: { withFees?: boolean } = {},
+  ): Promise<Paginated<StudentListItem>> {
     const yearId =
       query.academicYearId ??
       (
@@ -94,11 +150,23 @@ export class StudentsService {
           select: { id: true },
         })
       )?.id;
+    const today = schoolDate();
     const tokens = query.search?.split(/\s+/).filter(Boolean) ?? [];
     const enrolmentFilter: Prisma.StudentEnrolmentWhereInput | undefined =
       yearId && (query.classId || query.sectionId)
         ? { academicYearId: yearId, classId: query.classId, sectionId: query.sectionId }
         : undefined;
+    const idFilters: Prisma.StudentWhereInput[] = [];
+    if (query.admissionYear || query.admissionMonth)
+      idFilters.push({
+        id: { in: await this.admittedIn(query.admissionYear, query.admissionMonth) },
+      });
+    const owing =
+      opts.withFees && query.pendingFees ? await this.pendingFeesByStudent(today) : null;
+    if (owing)
+      idFilters.push({
+        id: query.pendingFees === 'YES' ? { in: [...owing.keys()] } : { notIn: [...owing.keys()] },
+      });
     const where: Prisma.StudentWhereInput = {
       status: query.status,
       enrolments:
@@ -107,15 +175,18 @@ export class StudentsService {
           : enrolmentFilter
             ? { some: enrolmentFilter }
             : undefined,
-      AND: tokens.map((t) => ({
-        OR: [
-          { firstName: { contains: t, mode: 'insensitive' as const } },
-          { middleName: { contains: t, mode: 'insensitive' as const } },
-          { lastName: { contains: t, mode: 'insensitive' as const } },
-          { admissionNumber: { contains: t, mode: 'insensitive' as const } },
-          { guardians: { some: { phone: { contains: t.replace(/[\s-]/g, '') } } } },
-        ],
-      })),
+      AND: [
+        ...idFilters,
+        ...tokens.map((t) => ({
+          OR: [
+            { firstName: { contains: t, mode: 'insensitive' as const } },
+            { middleName: { contains: t, mode: 'insensitive' as const } },
+            { lastName: { contains: t, mode: 'insensitive' as const } },
+            { admissionNumber: { contains: t, mode: 'insensitive' as const } },
+            { guardians: { some: { phone: { contains: t.replace(/[\s-]/g, '') } } } },
+          ],
+        })),
+      ],
     };
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.student.count({ where }),
@@ -134,6 +205,16 @@ export class StudentsService {
         take: query.pageSize,
       }),
     ]);
+    const ids = rows.map((s) => s.id);
+    const [admitted, pending] = await Promise.all([
+      this.prisma.studentEnrolment.groupBy({
+        by: ['studentId'],
+        where: { studentId: { in: ids } },
+        _min: { enrolmentDate: true },
+      }),
+      opts.withFees ? (owing ?? this.pendingFeesByStudent(today, ids)) : null,
+    ]);
+    const admittedOn = new Map(admitted.map((a) => [a.studentId, a._min.enrolmentDate]));
     return paginated(
       rows.map((s) => ({
         id: s.id,
@@ -153,6 +234,8 @@ export class StudentsService {
             }
           : null,
         enrolment: s.enrolments[0] ? toEnrolmentSummary(s.enrolments[0]) : null,
+        admissionDate: isoDayOrNull(admittedOn.get(s.id) ?? null),
+        pendingFees: pending ? rupees(pending.get(s.id) ?? 0) : null,
       })),
       total,
       query.page,
@@ -210,6 +293,9 @@ export class StudentsService {
       })),
       documents: s.documents.map(toDocument),
       enquiry: s.enquiry,
+      admissionDate: s.enrolments.length
+        ? s.enrolments.map((e) => isoDay(e.enrolmentDate)).sort()[0]
+        : null,
     };
   }
 
