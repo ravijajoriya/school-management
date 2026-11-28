@@ -96,8 +96,8 @@ test.describe('Reports, exports & data import', () => {
     // The dashboard counts them; the reports page shows class strength and downloads Excel.
     await navTo(page, 'Dashboard');
     await expect(page).toHaveURL(/\/admin$/);
-    const students = page.getByRole('region', { name: 'Students & admissions' });
-    await expect(students.getByText(/^Students \(/)).toBeVisible();
+    const students = page.getByRole('region', { name: 'Students & Admissions' });
+    await expect(students.getByText('Students', { exact: true })).toBeVisible();
     await expect(students).toContainText('2');
 
     await navTo(page, 'Reports & Exports');
