@@ -86,3 +86,66 @@ export function GraduateIllustration() {
     </svg>
   );
 }
+
+/** Two staff members, a teacher and an office colleague (Staff page). */
+export function StaffIllustration() {
+  return (
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <clipPath id="staff-clip">
+          <rect x="0" y="0" width="120" height="112" rx="10" />
+        </clipPath>
+      </defs>
+      <ellipse cx="62" cy="70" rx="54" ry="44" fill="#dbeafe" opacity="0.8" />
+      <g clipPath="url(#staff-clip)">
+        {/* man (back, right) */}
+        <path d="M58 112c1-20 12-31 28-31s27 11 28 31z" fill="#ffffff" stroke="#cbd5e1" />
+        <path d="M84 82l2 6 2-6z" fill="#e2e8f0" />
+        <path d="M86 88l-3 4 3 20 3-20z" fill="#1e3a8a" />
+        <rect x="80" y="70" width="12" height="13" rx="4" fill="#efc19f" />
+        <ellipse cx="86" cy="58" rx="14" ry="16" fill="#f6d2b4" />
+        <path d="M72 55c0-11 6-17 14-17s14 6 14 17c-2-5-7-8-14-8s-12 3-14 8z" fill="#1f2937" />
+        <circle cx="81" cy="59" r="4" fill="none" stroke="#1f2937" strokeWidth="1.6" />
+        <circle cx="91" cy="59" r="4" fill="none" stroke="#1f2937" strokeWidth="1.6" />
+        <path d="M85 59h2" stroke="#1f2937" strokeWidth="1.6" />
+        <path
+          d="M82.5 66c2 1.4 5 1.4 7 0"
+          stroke="#c0846a"
+          strokeWidth="1.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* woman (front, left) */}
+        <path d="M8 112c1-19 12-29 27-29s26 10 27 29z" fill="#2563eb" />
+        <path d="M28 84l7 12 7-12-7-3z" fill="#ffffff" />
+        <path d="M31 88l4 9 4-9" fill="none" stroke="#1e3a8a" strokeWidth="1.4" />
+        <rect
+          x="32.5"
+          y="97"
+          width="5"
+          height="6"
+          rx="1"
+          fill="#e2e8f0"
+          stroke="#94a3b8"
+          strokeWidth="0.8"
+        />
+        <rect x="29" y="72" width="12" height="12" rx="4" fill="#efc19f" />
+        <path
+          d="M17 66c-2-17 6-27 18-27s20 10 18 27c-1 6-3 10-5 12V60H22v18c-2-2-4-6-5-12z"
+          fill="#1f2937"
+        />
+        <ellipse cx="35" cy="61" rx="13" ry="15" fill="#f6d2b4" />
+        <path d="M22 58c2-9 8-13 13-13s11 4 13 13c-4-4-8-6-13-6s-9 2-13 6z" fill="#1f2937" />
+        <circle cx="30.5" cy="62" r="1.6" fill="#1f2937" />
+        <circle cx="39.5" cy="62" r="1.6" fill="#1f2937" />
+        <path
+          d="M31.5 68c2 1.4 4.6 1.4 7 0"
+          stroke="#c0846a"
+          strokeWidth="1.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+      </g>
+    </svg>
+  );
+}

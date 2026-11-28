@@ -5,15 +5,13 @@ import {
   EMPLOYEE_STATUSES,
   EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPES,
-  LEAVE_TYPE_LABELS,
   PERMISSIONS,
   createEmployeeSchema,
   type CreateEmployeeInput,
   type EmployeeDetail,
   type EmployeeStatus,
-  type LeaveType,
 } from '@school/shared';
-import { ArrowLeft, CalendarOff, IdCard } from 'lucide-react';
+import { ArrowLeft, CalendarOff, IdCard, Plus, UsersRound } from 'lucide-react';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -52,13 +50,21 @@ import {
 } from '../people-api';
 import { usePagination } from '@/lib/use-pagination';
 import { useConfirm } from '@/lib/dialogs';
+import { HeroCard, StaffIllustration } from '@/components/common/HeroCard';
+import {
+  CountBar,
+  FilterCard,
+  IconSelect,
+  InitialsAvatar,
+  SearchBox,
+  TonePill,
+} from '@/components/common/ListParts';
+import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { useViewMode } from '@/lib/use-view-mode';
+import { StaffCard, StaffMenu, StaffStatusPill, StaffTile } from './StaffListParts';
+import { leaveText } from './staff-format';
 
 const STATUS_TONE = { ACTIVE: 'green', INACTIVE: 'gray', LEFT: 'red' } as const;
-
-const leaveLabel = (l: { leaveType: string; endDate: string }) => {
-  const type = LEAVE_TYPE_LABELS[l.leaveType as LeaveType] ?? l.leaveType;
-  return `${/leave/i.test(type) ? type : `${type} leave`} until ${formatDate(l.endDate)}`;
-};
 
 export function EmployeesPage() {
   const navigate = useNavigate();
@@ -66,6 +72,7 @@ export function EmployeesPage() {
   const [status, setStatus] = useState<EmployeeStatus | ''>('ACTIVE');
   const [onLeave, setOnLeave] = useState(false);
   const [roleId, setRoleId] = useState('');
+  const [view, setView] = useViewMode('staff');
   const roles = useStaffRoleOptions();
   const role = roles.data?.find((r) => r.id === roleId);
   const { page, pageSize, setPage, setPageSize } = usePagination();
@@ -78,92 +85,110 @@ export function EmployeesPage() {
     page,
     pageSize,
   });
+  const reset =
+    <T,>(fn: (v: T) => void) =>
+    (v: T) => {
+      fn(v);
+      setPage(1);
+    };
+  const items = list.data?.items ?? [];
+  const total = list.data?.total ?? 0;
   return (
-    <div>
-      <PageHeader
+    <div className="mx-auto max-w-7xl">
+      <HeroCard
         title="Staff"
         description="Teaching and non-teaching staff records. Staff on leave today are listed first."
-        actions={
-          <PermissionGate permissions={[PERMISSIONS.EMPLOYEES_MANAGE]}>
-            <Button onClick={() => setAdding(true)}>Add staff member</Button>
-          </PermissionGate>
-        }
+        illustration={<StaffIllustration />}
       />
-      <Card>
-        <div className="filter-bar flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
-          <Input
-            type="search"
-            placeholder="Search name, code, designation, phone"
-            className="max-w-xs"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Search staff"
-          />
-          <Select
-            className="max-w-[180px]"
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value as EmployeeStatus | '');
-              setPage(1);
-            }}
-            aria-label="Filter by status"
-          >
-            <option value="">All</option>
-            {EMPLOYEE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {EMPLOYEE_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-          <Select
-            className="max-w-[200px]"
-            value={roleId}
-            onChange={(e) => {
-              setRoleId(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter by role"
-          >
-            <option value="">All roles</option>
-            {roles.data?.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name} ({r.userCount})
-              </option>
-            ))}
-          </Select>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3 [&_button]:text-[13px] sm:[&_button]:text-sm">
+        <ExportButtons
+          size="md"
+          report="staff"
+          params={{
+            status: status || undefined,
+            roleId: roleId || undefined,
+            onLeave: onLeave ? 'true' : undefined,
+          }}
+        />
+        <PermissionGate permissions={[PERMISSIONS.EMPLOYEES_MANAGE]}>
+          <Button onClick={() => setAdding(true)} className="ml-auto">
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add staff member
+          </Button>
+        </PermissionGate>
+      </div>
+
+      <FilterCard id="staff-filters">
+        <SearchBox
+          className="col-span-2"
+          placeholder="Name, code, designation or phone"
+          value={search}
+          onChange={(e) => reset(setSearch)(e.target.value)}
+          aria-label="Search staff"
+        />
+        <IconSelect
+          value={status}
+          onChange={(e) => reset(setStatus)(e.target.value as EmployeeStatus | '')}
+          aria-label="Filter by status"
+        >
+          <option value="">Any status</option>
+          {EMPLOYEE_STATUSES.map((st) => (
+            <option key={st} value={st}>
+              {EMPLOYEE_STATUS_LABELS[st]}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          value={roleId}
+          onChange={(e) => reset(setRoleId)(e.target.value)}
+          aria-label="Filter by role"
+        >
+          <option value="">All roles</option>
+          {roles.data?.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name} ({r.userCount})
+            </option>
+          ))}
+        </IconSelect>
+        <div className="col-span-2 flex items-center px-1 lg:col-span-4">
           <Checkbox
             label="On leave today"
             checked={onLeave}
-            onChange={(e) => {
-              setOnLeave(e.target.checked);
-              setPage(1);
-            }}
+            onChange={(e) => reset(setOnLeave)(e.target.checked)}
           />
         </div>
-        {role && role.usersWithoutStaff.length > 0 && (
-          <div className="border-b border-gray-200 p-4">
-            <Alert tone="info">
-              {role.usersWithoutStaff.length} of {role.userCount} user
-              {role.userCount === 1 ? '' : 's'} with the {role.name} role{' '}
-              {role.usersWithoutStaff.length === 1 ? 'has' : 'have'} no staff record, so{' '}
-              {role.usersWithoutStaff.length === 1 ? "isn't" : "aren't"} listed here:{' '}
-              <strong>
-                {role.usersWithoutStaff
-                  .map((u) => `${u.fullName}${u.login ? ` (${u.login})` : ''}`)
-                  .join(', ')}
-              </strong>
-              . To list them, add a staff record and use “Link existing login” on it.
-            </Alert>
-          </div>
-        )}
-        {list.isLoading ? (
-          <PageSpinner />
-        ) : !list.data?.items.length ? (
+      </FilterCard>
+
+      {role && role.usersWithoutStaff.length > 0 && (
+        <div className="mb-3 sm:mb-4">
+          <Alert tone="info">
+            {role.usersWithoutStaff.length} of {role.userCount} user
+            {role.userCount === 1 ? '' : 's'} with the {role.name} role{' '}
+            {role.usersWithoutStaff.length === 1 ? 'has' : 'have'} no staff record, so{' '}
+            {role.usersWithoutStaff.length === 1 ? "isn't" : "aren't"} listed here:{' '}
+            <strong>
+              {role.usersWithoutStaff
+                .map((u) => `${u.fullName}${u.login ? ` (${u.login})` : ''}`)
+                .join(', ')}
+            </strong>
+            . To list them, add a staff record and use “Link existing login” on it.
+          </Alert>
+        </div>
+      )}
+
+      <CountBar
+        icon={UsersRound}
+        title={`${total.toLocaleString('en-IN')} Staff Member${total === 1 ? '' : 's'}`}
+        view={view}
+        onViewChange={setView}
+      />
+
+      {list.isLoading ? (
+        <PageSpinner />
+      ) : !items.length ? (
+        <Card>
           <EmptyState
-            icon={onLeave ? CalendarOff : undefined}
+            icon={onLeave ? CalendarOff : UsersRound}
             title={
               onLeave
                 ? 'Nobody is on leave today'
@@ -172,88 +197,111 @@ export function EmployeesPage() {
                   : 'No staff found'
             }
           />
-        ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Designation</th>
-                <th className="px-4 py-3 font-medium">Contact</th>
-                <th className="px-4 py-3 font-medium">Login / role</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {list.data.items.map((e) => (
-                <tr
-                  key={e.id}
-                  className={`cursor-pointer hover:bg-surface/60 ${e.onLeave ? 'bg-amber-50/60' : ''}`}
-                  onClick={() => navigate(`/admin/staff/${e.id}`)}
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/admin/staff/${e.id}`}
-                      className="font-medium text-brand-navy hover:underline"
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      {e.fullName}
-                    </Link>
-                    <div className="text-xs text-ink-muted">{e.employeeCode}</div>
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">
-                    {e.designation}
-                    {e.department ? ` · ${e.department}` : ''}
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">{e.phone ?? e.email ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {e.user ? (
-                      <div className="flex flex-wrap gap-1">
-                        {e.roles.length ? (
-                          e.roles.map((r) => (
-                            <Badge key={r.id} tone="navy">
-                              {r.name}
-                            </Badge>
-                          ))
-                        ) : (
-                          <Badge tone="green">Yes</Badge>
-                        )}
-                      </div>
-                    ) : (
-                      <Badge tone="gray">No login</Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Badge tone={STATUS_TONE[e.status]}>{EMPLOYEE_STATUS_LABELS[e.status]}</Badge>
-                      {e.onLeave && (
-                        <span title={leaveLabel(e.onLeave)}>
-                          <Badge tone="amber">
-                            <CalendarOff className="mr-1 h-3 w-3" aria-hidden="true" />
-                            On leave
-                          </Badge>
-                        </span>
-                      )}
-                    </div>
-                    {e.onLeave && (
-                      <div className="mt-0.5 text-xs text-ink-muted">{leaveLabel(e.onLeave)}</div>
-                    )}
-                  </td>
+        </Card>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          {items.map((e) => (
+            <StaffTile key={e.id} employee={e} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2.5 md:hidden">
+            {items.map((e) => (
+              <StaffCard key={e.id} employee={e} />
+            ))}
+          </div>
+          <Card className="hidden overflow-x-auto md:block">
+            <table className="min-w-full text-sm">
+              <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Designation</th>
+                  <th className="px-4 py-3 font-medium">Contact</th>
+                  <th className="px-4 py-3 font-medium">Login / role</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-2 py-3" aria-label="Actions" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {list.data && list.data.total > 0 && (
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map((e) => (
+                  <tr
+                    key={e.id}
+                    className={`cursor-pointer hover:bg-surface/60 ${e.onLeave ? 'bg-orange-50/50' : ''}`}
+                    onClick={() => navigate(`/admin/staff/${e.id}`)}
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <InitialsAvatar name={e.fullName} className="h-9 w-9 text-xs" />
+                        <div className="min-w-0">
+                          <Link
+                            to={`/admin/staff/${e.id}`}
+                            className="font-semibold text-brand-navy hover:underline"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
+                            {e.fullName}
+                          </Link>
+                          <div className="text-xs text-ink-muted">{e.employeeCode}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <TonePill>{e.designation}</TonePill>
+                      {e.department && (
+                        <div className="mt-0.5 text-xs text-ink-muted">{e.department}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-ink-muted">
+                      <div className="text-ink">{e.phone ?? '—'}</div>
+                      {e.email && <div className="text-xs">{e.email}</div>}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {e.user ? (
+                        <div className="flex flex-wrap gap-1">
+                          {e.roles.length ? (
+                            e.roles.map((r) => (
+                              <Badge key={r.id} tone="navy">
+                                {r.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge tone="green">Yes</Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <Badge tone="gray">No login</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <StaffStatusPill employee={e} />
+                      {e.onLeave && (
+                        <div className="mt-0.5 text-xs text-ink-muted">{leaveText(e.onLeave)}</div>
+                      )}
+                    </td>
+                    <td className="px-2 py-2.5" onClick={(ev) => ev.stopPropagation()}>
+                      <StaffMenu employee={e} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+
+      {list.data && total > 0 && (
+        <Card className="mt-3 sm:mt-4">
           <Pagination
+            className="py-3.5"
             page={list.data.page}
             totalPages={list.data.totalPages}
-            total={list.data.total}
+            total={total}
             onChange={setPage}
             pageSize={pageSize}
             onPageSizeChange={setPageSize}
           />
-        )}
-      </Card>
+        </Card>
+      )}
       {adding && (
         <EmployeeFormModal
           onClose={() => setAdding(false)}
@@ -492,7 +540,7 @@ export function EmployeeDetailPage() {
                       ],
                     ]
                   : []),
-                ...(e.onLeave ? [['Today', leaveLabel(e.onLeave)]] : []),
+                ...(e.onLeave ? [['Today', leaveText(e.onLeave)]] : []),
               ].map(([k, v]) => (
                 <div key={k as string}>
                   <dt className="text-ink-muted">{k}</dt>

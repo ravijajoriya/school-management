@@ -21,14 +21,9 @@ import {
   CalendarDays,
   CalendarRange,
   Camera,
-  ChevronDown,
   Coins,
-  Filter,
   GraduationCap,
-  LayoutGrid,
-  List as ListIcon,
   Plus,
-  Search,
   Trash2,
   UserRound,
   Users,
@@ -78,13 +73,14 @@ import { GraduateIllustration, HeroCard } from '@/components/common/HeroCard';
 import {
   ClassBadge,
   FeesPill,
-  IconSelect,
   StatusDot,
   StudentAvatar,
   StudentCard,
   StudentMenu,
   StudentTile,
 } from './StudentListParts';
+import { CountBar, FilterCard, IconSelect, SearchBox } from '@/components/common/ListParts';
+import { useViewMode } from '@/lib/use-view-mode';
 import { admittedLabel } from './student-format';
 import { useConfirm } from '@/lib/dialogs';
 
@@ -106,8 +102,6 @@ const ENROLMENT_TONE = {
 
 // --- List ------------------------------------------------------------------------------------
 
-const VIEW_KEY = 'students:view';
-
 export function StudentsPage() {
   const navigate = useNavigate();
   const { years, yearId, setYearId } = useYearSelection();
@@ -120,22 +114,7 @@ export function StudentsPage() {
   const [admissionYear, setAdmissionYear] = useState('');
   const [admissionMonth, setAdmissionMonth] = useState('');
   const [pendingFees, setPendingFees] = useState<'' | 'YES' | 'NO'>('');
-  const [filtersOpen, setFiltersOpen] = useState(true);
-  const [view, setViewState] = useState<'list' | 'grid'>(() => {
-    try {
-      return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'list';
-    } catch {
-      return 'list';
-    }
-  });
-  const setView = (v: 'list' | 'grid') => {
-    setViewState(v);
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {
-      /* private mode */
-    }
-  };
+  const [view, setView] = useViewMode('students');
   const { can } = useAuth();
   const seeFees = can(PERMISSIONS.FEES_READ);
   const admissionYears = useAdmissionYears();
@@ -206,175 +185,114 @@ export function StudentsPage() {
         </PermissionGate>
       </div>
 
-      <Card className="mb-3 sm:mb-4">
-        <button
-          type="button"
-          onClick={() => setFiltersOpen((o) => !o)}
-          aria-expanded={filtersOpen}
-          aria-controls="student-filters"
-          className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-5"
+      <FilterCard id="student-filters">
+        <SearchBox
+          className="col-span-2"
+          placeholder="Name, admission no. or phone"
+          value={search}
+          onChange={(e) => reset(setSearch)(e.target.value)}
+          aria-label="Search students"
+        />
+        <IconSelect
+          icon={GraduationCap}
+          value={classId}
+          onChange={(e) => {
+            reset(setClassId)(e.target.value);
+            setSectionId('');
+          }}
+          aria-label="Filter by class"
+          disabled={notEnrolled}
         >
-          <Filter className="h-[18px] w-[18px] shrink-0 text-ink" aria-hidden="true" />
-          <span className="flex-1 text-[15px] font-semibold text-brand-navy sm:text-base">
-            Search &amp; Filters
-          </span>
-          <ChevronDown
-            className={`h-5 w-5 shrink-0 text-ink-muted transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`}
-            aria-hidden="true"
-          />
-        </button>
-        <div
-          id="student-filters"
-          hidden={!filtersOpen}
-          className="grid grid-cols-2 gap-2.5 px-4 pb-4 sm:px-5 lg:grid-cols-4"
-        >
-          <div className="relative col-span-2">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              placeholder="Name, admission no. or phone"
-              value={search}
-              onChange={(e) => reset(setSearch)(e.target.value)}
-              aria-label="Search students"
-              className="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-base text-ink placeholder:text-gray-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40 sm:text-sm"
-            />
-          </div>
-          <IconSelect
-            icon={GraduationCap}
-            value={classId}
-            onChange={(e) => {
-              reset(setClassId)(e.target.value);
-              setSectionId('');
-            }}
-            aria-label="Filter by class"
-            disabled={notEnrolled}
-          >
-            <option value="">All classes</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </IconSelect>
-          <IconSelect
-            icon={Users}
-            value={sectionId}
-            onChange={(e) => reset(setSectionId)(e.target.value)}
-            aria-label="Filter by section"
-            disabled={notEnrolled}
-          >
-            <option value="">All sections</option>
-            {sections.options
-              .filter((o) => !classId || o.classId === classId)
-              .map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-          </IconSelect>
-          <IconSelect
-            leading={<StatusDot status={status} />}
-            value={status}
-            onChange={(e) => reset(setStatus)(e.target.value as StudentStatus | '')}
-            aria-label="Filter by status"
-          >
-            <option value="">Any status</option>
-            {STUDENT_STATUSES.map((st) => (
-              <option key={st} value={st}>
-                {STUDENT_STATUS_LABELS[st]}
-              </option>
-            ))}
-          </IconSelect>
-          <IconSelect
-            icon={CalendarDays}
-            value={admissionYear}
-            onChange={(e) => reset(setAdmissionYear)(e.target.value)}
-            aria-label="Filter by admission year"
-          >
-            <option value="">Admitted</option>
-            {admissionYears.data?.map((y) => (
-              <option key={y} value={y}>
-                Admitted {y}
-              </option>
-            ))}
-          </IconSelect>
-          <IconSelect
-            icon={CalendarRange}
-            value={admissionMonth}
-            onChange={(e) => reset(setAdmissionMonth)(e.target.value)}
-            aria-label="Filter by admission month"
-          >
-            <option value="">Any month</option>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m}
-              </option>
-            ))}
-          </IconSelect>
-          {seeFees && (
-            <IconSelect
-              icon={Coins}
-              value={pendingFees}
-              onChange={(e) => reset(setPendingFees)(e.target.value as '' | 'YES' | 'NO')}
-              aria-label="Filter by pending fees"
-            >
-              <option value="">Fees: all</option>
-              <option value="YES">Fees pending</option>
-              <option value="NO">No fees pending</option>
-            </IconSelect>
-          )}
-          <div className="col-span-2 flex items-center px-1 lg:col-span-1">
-            <Checkbox
-              label="Not enrolled this year"
-              checked={notEnrolled}
-              onChange={(e) => reset(setNotEnrolled)(e.target.checked)}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="mb-3 flex items-center gap-3 p-3 sm:mb-4 sm:px-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-          <Users className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold leading-tight text-brand-navy sm:text-base">
-            {(list.data?.total ?? 0).toLocaleString('en-IN')} Student
-            {list.data?.total === 1 ? '' : 's'}
-          </p>
-          {yearName && <p className="text-xs text-ink-muted">Academic year: {yearName}</p>}
-        </div>
-        <div
-          className="flex shrink-0 rounded-lg bg-white p-0.5 ring-1 ring-gray-200"
-          role="group"
-          aria-label="Layout"
-        >
-          {(
-            [
-              ['list', ListIcon, 'List view'],
-              ['grid', LayoutGrid, 'Grid view'],
-            ] as const
-          ).map(([v, Icon, label]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              aria-pressed={view === v}
-              aria-label={label}
-              className={`flex h-8 w-10 items-center justify-center rounded-md transition-colors ${
-                view === v
-                  ? 'bg-brand-navy text-white shadow-sm'
-                  : 'text-ink-muted hover:bg-gray-100'
-              }`}
-            >
-              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-            </button>
+          <option value="">All classes</option>
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
+        </IconSelect>
+        <IconSelect
+          icon={Users}
+          value={sectionId}
+          onChange={(e) => reset(setSectionId)(e.target.value)}
+          aria-label="Filter by section"
+          disabled={notEnrolled}
+        >
+          <option value="">All sections</option>
+          {sections.options
+            .filter((o) => !classId || o.classId === classId)
+            .map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+        </IconSelect>
+        <IconSelect
+          leading={<StatusDot status={status} />}
+          value={status}
+          onChange={(e) => reset(setStatus)(e.target.value as StudentStatus | '')}
+          aria-label="Filter by status"
+        >
+          <option value="">Any status</option>
+          {STUDENT_STATUSES.map((st) => (
+            <option key={st} value={st}>
+              {STUDENT_STATUS_LABELS[st]}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          icon={CalendarDays}
+          value={admissionYear}
+          onChange={(e) => reset(setAdmissionYear)(e.target.value)}
+          aria-label="Filter by admission year"
+        >
+          <option value="">Admitted</option>
+          {admissionYears.data?.map((y) => (
+            <option key={y} value={y}>
+              Admitted {y}
+            </option>
+          ))}
+        </IconSelect>
+        <IconSelect
+          icon={CalendarRange}
+          value={admissionMonth}
+          onChange={(e) => reset(setAdmissionMonth)(e.target.value)}
+          aria-label="Filter by admission month"
+        >
+          <option value="">Any month</option>
+          {MONTHS.map((m, i) => (
+            <option key={m} value={i + 1}>
+              {m}
+            </option>
+          ))}
+        </IconSelect>
+        {seeFees && (
+          <IconSelect
+            icon={Coins}
+            value={pendingFees}
+            onChange={(e) => reset(setPendingFees)(e.target.value as '' | 'YES' | 'NO')}
+            aria-label="Filter by pending fees"
+          >
+            <option value="">Fees: all</option>
+            <option value="YES">Fees pending</option>
+            <option value="NO">No fees pending</option>
+          </IconSelect>
+        )}
+        <div className="col-span-2 flex items-center px-1 lg:col-span-1">
+          <Checkbox
+            label="Not enrolled this year"
+            checked={notEnrolled}
+            onChange={(e) => reset(setNotEnrolled)(e.target.checked)}
+          />
         </div>
-      </Card>
+      </FilterCard>
+
+      <CountBar
+        icon={Users}
+        title={`${(list.data?.total ?? 0).toLocaleString('en-IN')} Student${list.data?.total === 1 ? '' : 's'}`}
+        subtitle={yearName ? `Academic year: ${yearName}` : undefined}
+        view={view}
+        onViewChange={setView}
+      />
 
       {list.isLoading ? (
         <PageSpinner />
