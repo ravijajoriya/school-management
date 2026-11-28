@@ -7,16 +7,18 @@ export function YearPicker({
   yearId,
   onChange,
   years,
+  className = 'max-w-[200px]',
 }: {
   id?: string;
   yearId: string;
   onChange: (id: string) => void;
   years: AcademicYearItem[] | undefined;
+  className?: string;
 }) {
   return (
     <Select
       id={id}
-      className="max-w-[200px]"
+      className={className}
       value={yearId}
       onChange={(e) => onChange(e.target.value)}
       aria-label={id ? undefined : 'Academic year'}

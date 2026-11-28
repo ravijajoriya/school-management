@@ -111,7 +111,7 @@ export function PaymentsPage() {
         </div>
       )}
       <Card>
-        <div className="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
+        <div className="filter-bar flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
           <Input
             type="search"
             placeholder="Student, admission no., receipt or cheque no."
@@ -424,7 +424,7 @@ function DuesReportView() {
         <PageSpinner />
       ) : !r ? null : (
         <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Tile label="Billed" value={money(r.totals.billed)} />
             <Tile label="Concessions" value={money(r.totals.reductions)} />
             <Tile label="Collected" value={money(r.totals.paid)} tone="green" />
@@ -541,7 +541,7 @@ function CollectionView() {
         <PageSpinner />
       ) : !r ? null : (
         <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Tile label="Collected" value={money(r.total)} tone="green" />
             <Tile label="Receipts" value={String(r.receipts)} />
             <Tile
@@ -627,7 +627,7 @@ function ConcessionsView() {
         <PageSpinner />
       ) : !r ? null : (
         <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {ADJUSTMENT_TYPES.map((t) => (
               <Tile key={t} label={ADJUSTMENT_TYPE_LABELS[t]} value={money(r.totals[t])} />
             ))}

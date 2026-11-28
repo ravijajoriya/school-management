@@ -150,7 +150,7 @@ export function StudentsPage() {
         }
       />
       <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
+        <div className="filter-bar flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
           <Input
             type="search"
             placeholder="Name, admission no. or parent phone"
@@ -626,8 +626,8 @@ function StudentDetailView({ student }: { student: StudentDetail }) {
             </>
           )}
         </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-brand-navy">{student.fullName}</h1>
+        <div className="min-w-0 flex-1 basis-48">
+          <h1 className="text-xl font-bold text-brand-navy sm:text-2xl">{student.fullName}</h1>
           <p className="text-sm text-ink-muted">
             {student.admissionNumber} ·{' '}
             <Badge tone={STATUS_TONE[student.status]}>
@@ -650,7 +650,7 @@ function StudentDetailView({ student }: { student: StudentDetail }) {
           </p>
         </div>
         {manage && (
-          <Button variant="secondary" onClick={() => setEditing(true)}>
+          <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setEditing(true)}>
             Edit details
           </Button>
         )}

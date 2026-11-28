@@ -27,6 +27,7 @@
   --animate-fade-up: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-scale-in: scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-slide-down: slide-down 0.18s ease-out both;
+  --animate-sheet-up: sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 
   @keyframes fade-in {
     from {
@@ -51,6 +52,11 @@
       transform: translateY(-6px) scale(0.98);
     }
   }
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
 }
 
 /* Portal tables: gentle row highlight so long lists are easier to follow. */
@@ -59,6 +65,105 @@
 }
 .portal-main table tbody tr:hover {
   background-color: rgb(19 41 75 / 0.035);
+}
+
+/*
+ * Phones and tablets (< 1024px): lists keep their rows and columns and scroll sideways instead of
+ * squeezing. The box holding a table scrolls; everything else in that box (filters, pagination,
+ * headings) stays pinned to the left edge, and so does the table's first column (usually the
+ * name). Cells stay on one line. Printable documents (data-fit: receipts, payslips, report cards)
+ * keep fitting the page; data-grid tables (the class register) size and pin their own columns.
+ */
+@media screen and (max-width: 1023px) {
+  .portal-main :has(> table:not([data-fit])) {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .portal-main :has(> table:not([data-fit])) > :not(table) {
+    position: sticky;
+    left: 0;
+  }
+  /* Lists with 4+ columns: one line per cell, first column pinned (it gets the narrowest width
+     that fits its longest word, at least 7rem, and wraps between words). Smaller tables fit. */
+  .portal-main table:not([data-fit], [data-grid]):has(> thead > tr > th:nth-child(4)) :is(th, td) {
+    white-space: nowrap;
+  }
+  .portal-main
+    table:not([data-fit], [data-grid]):has(> thead > tr > th:nth-child(4))
+    > :is(thead, tbody, tfoot)
+    > tr
+    > :first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 7rem;
+    white-space: normal;
+    overflow-wrap: break-word;
+    background-color: #fff;
+    box-shadow: inset -1px 0 0 rgb(229 231 235);
+  }
+  .portal-main
+    table:not([data-fit], [data-grid]):has(> thead > tr > th:nth-child(4))
+    > thead
+    > tr
+    > :first-child {
+    background-color: var(--color-surface);
+  }
+  /* Class lists (Roll, Student, …): a narrow Roll column, and Roll + Student both pinned. */
+  .portal-main table[data-pin-second] > :is(thead, tbody, tfoot) > tr > :first-child {
+    width: 3.25rem !important;
+    min-width: 3.25rem !important;
+    max-width: 3.25rem !important;
+    white-space: nowrap !important;
+    box-shadow: none !important;
+  }
+  .portal-main table[data-pin-second] > :is(thead, tbody, tfoot) > tr > :nth-child(2) {
+    position: sticky;
+    left: 3.25rem !important;
+    z-index: 1;
+    min-width: 7rem;
+    white-space: normal;
+    background-color: #fff;
+    box-shadow: inset -1px 0 0 rgb(229 231 235);
+  }
+  .portal-main table[data-pin-second] > thead > tr > :nth-child(2) {
+    background-color: var(--color-surface);
+  }
+  /* Lists whose first column carries a lot of text (e.g. payroll: name + pay breakdown). */
+  .portal-main table[data-pin-wide] > :is(thead, tbody, tfoot) > tr > :first-child {
+    min-width: 13rem !important;
+  }
+}
+
+/* Phones (< 640px): form controls fill their space; list filters sit two per row. */
+@media screen and (max-width: 639px) {
+  /* Form controls use the full width they are given (desktop width caps like max-w-xs off). */
+  .portal-main
+    :is(input:not([type='checkbox'], [type='radio'], [type='file']), select, textarea):not(
+      .keep-width
+    ) {
+    max-width: none !important;
+  }
+  /* List filters: two per row; search boxes, checkboxes and wide fields take the whole row. */
+  .portal-main .filter-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+  .portal-main
+    .filter-bar
+    > :is(input[type='search'], label:has(input[type='checkbox']), .filter-wide, button, a) {
+    grid-column: 1 / -1;
+  }
+  .portal-main .filter-bar > * {
+    min-width: 0;
+    max-width: none !important;
+  }
+  .portal-main .filter-bar :is(input:not([type='checkbox']), select) {
+    width: 100% !important;
+  }
 }
 
 /* Thin, quiet scrollbars inside the portal shell. */

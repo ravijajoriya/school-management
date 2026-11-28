@@ -70,7 +70,7 @@ function Totals({ ledger }: { ledger: StudentLedger }) {
     ['Overdue', t.overdue, t.overdue > 0 ? 'text-red-700' : undefined],
   ];
   return (
-    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {cells.map(([label, value, color]) => (
         <Card key={label} className="p-3">
           <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
@@ -1092,7 +1092,7 @@ export function ReceiptPage() {
             </>
           )}
         </dl>
-        <table className="mt-5 w-full text-sm">
+        <table data-fit className="mt-5 w-full text-sm">
           <thead className="border-y border-gray-300 text-left text-xs uppercase text-ink-muted">
             <tr>
               <th className="py-2 font-medium">Particulars</th>

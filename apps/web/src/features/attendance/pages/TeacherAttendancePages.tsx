@@ -5,7 +5,7 @@ import { errorMessages } from '@/lib/api-client';
 import { todayIso } from '@/lib/format';
 import { useMyAttendanceSections } from '../attendance-api';
 import { AttendanceSheetPanel } from '../components/AttendanceSheetPanel';
-import { RegisterPanel } from '../components/AttendanceReports';
+import { RegisterActions, RegisterPanel } from '../components/AttendanceReports';
 
 /** Today's attendance status for each class the teacher is class teacher of. */
 export function TodayAttendanceCards({ compact = false }: { compact?: boolean }) {
@@ -158,6 +158,7 @@ export function TeacherRegisterPage() {
           />
         </Field>
       </div>
+      <RegisterActions sectionId={sectionId} month={month} />
       <RegisterPanel sectionId={sectionId} month={month} />
     </div>
   );
