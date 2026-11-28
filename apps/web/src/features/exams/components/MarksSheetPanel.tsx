@@ -147,7 +147,7 @@ function SheetEditor({
         <EmptyState title="No students in this section" />
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table data-pin-second className="min-w-full text-sm">
             <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
               <tr>
                 <th className="px-4 py-2 font-medium">Roll</th>

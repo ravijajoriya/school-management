@@ -288,7 +288,7 @@ export function PayrollRunPage() {
         ))}
       </div>
       <Card className="overflow-x-auto print:border-0 print:shadow-none">
-        <table className="min-w-full text-sm">
+        <table data-pin-wide className="min-w-full text-sm">
           <thead className={theadClass}>
             <tr>
               <Th>Staff member</Th>
@@ -680,7 +680,7 @@ function PayslipView({ recordId, mine }: { recordId: string; mine: boolean }) {
             {formatDate(s.periodStart)} – {formatDate(s.periodEnd)}
           </dd>
         </dl>
-        <table className="mt-6 min-w-full border border-gray-300 text-sm">
+        <table data-fit className="mt-6 min-w-full border border-gray-300 text-sm">
           <thead className="bg-surface">
             <tr>
               <th className="border border-gray-300 px-3 py-2 text-left">Earnings</th>

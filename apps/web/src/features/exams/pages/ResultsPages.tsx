@@ -91,7 +91,7 @@ export function SectionResultsPage() {
           {!r.exam.final && (
             <Alert tone="warning">These results are provisional until the exam is finalised.</Alert>
           )}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {[
               ['Students', String(r.overall.students)],
               ['Passed', String(r.overall.passed)],
@@ -110,7 +110,7 @@ export function SectionResultsPage() {
             <h2 className="border-b border-gray-200 p-4 font-semibold text-brand-navy">
               Mark sheet
             </h2>
-            <table className="min-w-full text-sm">
+            <table data-pin-second className="min-w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">Roll</th>
@@ -268,7 +268,7 @@ export function ReportCardPage() {
             </>
           )}
         </dl>
-        <table className="mt-5 w-full text-sm">
+        <table data-fit className="mt-5 w-full text-sm">
           <thead className="border-y border-gray-300 text-left text-xs uppercase text-ink-muted">
             <tr>
               <th className="py-2 font-medium">Subject</th>

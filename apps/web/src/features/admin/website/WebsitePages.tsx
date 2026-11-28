@@ -193,7 +193,7 @@ function EditorForm({
           </a>
         }
       />
-      <div className="sticky top-0 z-10 -mx-6 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-surface/95 px-6 py-3 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <span className="text-sm text-ink-muted">
           {dirty ? (
             <Badge tone="amber">Unsaved edits</Badge>

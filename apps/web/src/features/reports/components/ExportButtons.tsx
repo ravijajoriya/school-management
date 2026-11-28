@@ -13,10 +13,12 @@ export function ExportButtons({
   report,
   params = {},
   disabled,
+  size = 'sm',
 }: {
   report: ReportExportKey;
   params?: Record<string, string | undefined>;
   disabled?: boolean;
+  size?: 'sm' | 'md';
 }) {
   const { can } = useAuth();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -36,7 +38,7 @@ export function ExportButtons({
   return (
     <span className="inline-flex flex-wrap items-center gap-2 print:hidden">
       <Button
-        size="sm"
+        size={size}
         variant="secondary"
         disabled={disabled}
         loading={busy === 'csv'}
@@ -45,7 +47,7 @@ export function ExportButtons({
         <Download className="h-4 w-4" aria-hidden="true" /> CSV
       </Button>
       <Button
-        size="sm"
+        size={size}
         variant="secondary"
         disabled={disabled}
         loading={busy === 'xlsx'}

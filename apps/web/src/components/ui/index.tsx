@@ -100,7 +100,8 @@ export function Field({
 
 const controlClass = (invalid?: boolean) =>
   cx(
-    'block w-full rounded-md border bg-white px-3 py-2 text-sm text-ink transition-shadow duration-150 placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:bg-gray-100',
+    // 16px text on phones: iOS Safari zooms the page when a smaller field is focused.
+    'block w-full min-w-0 rounded-md border bg-white px-3 py-2 text-base text-ink transition-shadow duration-150 placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:bg-gray-100 sm:text-sm',
     invalid
       ? 'border-red-500 focus:ring-red-200'
       : 'border-gray-300 focus:border-brand-navy focus:ring-brand-gold/40',
@@ -315,7 +316,7 @@ export function PageHeader({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6 sm:gap-4">
       <div className="flex items-start gap-3">
         {Icon && (
           <span className="mt-0.5 hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy to-brand-navy-light text-brand-gold shadow-md shadow-brand-navy/20 sm:flex print:hidden">
@@ -323,7 +324,9 @@ export function PageHeader({
           </span>
         )}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-brand-navy">{title}</h1>
+          <h1 className="text-xl font-bold tracking-tight break-words text-brand-navy sm:text-2xl">
+            {title}
+          </h1>
           <span
             className="mt-1.5 block h-1 w-10 rounded-full bg-gradient-to-r from-brand-gold to-brand-gold/30 print:hidden"
             aria-hidden="true"
@@ -398,7 +401,8 @@ export function Modal({
   // Rendered on <body>: a transformed ancestor (the page fade-in) would otherwise become the
   // containing block for `position: fixed`, clipping the dialog to the page content.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[8vh]">
+    // Phones: a bottom sheet (body scrolls, header and footer stay put). Larger screens: centred.
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-start sm:overflow-y-auto sm:p-4 sm:pt-[8vh]">
       <div
         className="fixed inset-0 animate-fade-in bg-brand-navy-dark/50 backdrop-blur-[2px]"
         onClick={onClose}
@@ -411,11 +415,15 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cx(
-          'relative w-full animate-scale-in rounded-2xl bg-white shadow-2xl shadow-brand-navy/20 ring-1 ring-black/5 focus:outline-none',
-          { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size],
+          'relative flex max-h-[92dvh] w-full animate-sheet-up flex-col rounded-t-2xl bg-white shadow-2xl shadow-brand-navy/20 ring-1 ring-black/5 focus:outline-none sm:max-h-none sm:animate-scale-in sm:rounded-2xl',
+          { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' }[size],
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+        <span
+          className="mx-auto mt-2 block h-1 w-10 shrink-0 rounded-full bg-gray-300 sm:hidden"
+          aria-hidden="true"
+        />
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-start gap-3">
             {Icon && (
               <span
@@ -442,9 +450,13 @@ export function Modal({
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        {children != null && children !== false && <div className="px-5 py-4">{children}</div>}
+        {children != null && children !== false && (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:flex-none sm:overflow-visible sm:px-5">
+            {children}
+          </div>
+        )}
         {footer && (
-          <div className="flex flex-wrap justify-end gap-2 rounded-b-2xl border-t border-gray-100 bg-gray-50/80 px-5 py-3">
+          <div className="modal-footer flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 bg-gray-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:rounded-b-2xl sm:px-5 sm:pb-3">
             {footer}
           </div>
         )}
@@ -500,7 +512,7 @@ export function Pagination({
               id={sizeId}
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40"
+              className="keep-width rounded-md border border-gray-300 bg-white px-2 py-1 text-base text-ink focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-gold/40 sm:text-sm"
             >
               {pageSizeOptions.map((n) => (
                 <option key={n} value={n}>

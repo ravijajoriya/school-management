@@ -4,9 +4,12 @@ const exactText = (s: string) => new RegExp(`^${s.replace(/[.*+?^${}()|[\]\\]/g,
 
 /**
  * Clicks a link in the portal sidebar. Sidebar sections (People, Fees, …) are collapsible, so the
- * link's section is opened first when it is collapsed.
+ * link's section is opened first when it is collapsed. On small screens the menu is opened first.
  */
 export async function navTo(page: Page, label: string) {
+  // Phones and tablets: the sidebar is a drawer behind the menu button.
+  const menu = page.getByRole('button', { name: 'Open menu' });
+  if (await menu.isVisible()) await menu.click();
   const nav = page.getByRole('navigation', { name: /Portal navigation$/ });
   const link = nav.getByRole('link', { name: label, exact: true });
   if (!(await link.isVisible())) {

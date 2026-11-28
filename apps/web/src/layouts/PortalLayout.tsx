@@ -5,6 +5,8 @@ import {
   ExternalLink,
   KeyRound,
   LogOut,
+  Menu,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -12,6 +14,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { SchoolLogo } from '@/components/common/SchoolLogo';
 import { SITE } from '@/config/site';
 import { useAuth } from '@/features/auth/auth-context';
+import { useMediaQuery } from '@/lib/use-media-query';
 
 export interface PortalNavItem {
   to: string;
@@ -42,11 +45,14 @@ function groupNav(items: PortalNavItem[]): NavGroup[] {
 
 /** The nav item for the current page: the longest matching path (so /admin/exams/grading beats /admin/exams). */
 function activeItem(items: PortalNavItem[], pathname: string): PortalNavItem | undefined {
-  return items
-    .filter((i) =>
-      i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(`${i.to}/`),
-    )
-    .sort((a, b) => b.to.length - a.to.length)[0];
+  const longest = (list: PortalNavItem[]) => list.sort((a, b) => b.to.length - a.to.length)[0];
+  const under = (i: PortalNavItem) => pathname === i.to || pathname.startsWith(`${i.to}/`);
+  return (
+    longest(items.filter((i) => (i.end ? pathname === i.to : under(i)))) ??
+    // Pages reached from a list (an exam, a fee ledger…) belong to that list's item, even when
+    // the menu link itself only highlights on its exact path. The dashboard never claims them.
+    longest(items.filter((i) => i.end && i.to.split('/').length > 2 && under(i)))
+  );
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -66,6 +72,10 @@ const today = new Intl.DateTimeFormat('en-IN', {
  * scrolls. Sidebar sections (People, Fees, …) collapse with a short animation; one is open at a
  * time, and the section of the current page opens automatically. Printing falls back to normal
  * document flow.
+ *
+ * Below 1024px (phones, tablets) the sidebar becomes a drawer opened from the menu button in the
+ * top bar; it closes on navigation, Escape or a tap outside. Tables keep their columns and scroll
+ * sideways on small screens (index.css).
  */
 export function PortalLayout({
   title,
@@ -92,6 +102,29 @@ export function PortalLayout({
   }
   const mainRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Navigating closes the drawer.
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (pathname !== seenPath) {
+    setSeenPath(pathname);
+    setMenuOpen(false);
+  }
+  const drawerOpen = menuOpen && !isDesktop;
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    navRef.current?.querySelector<HTMLElement>('a, button')?.focus({ preventScroll: true });
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 
   useEffect(() => {
     // Start each page at the top (the content area scrolls, not the window) and keep the
@@ -141,24 +174,49 @@ export function PortalLayout({
   const [todayLabel] = useState(() => today.format(new Date()));
   return (
     <div className="flex h-dvh overflow-hidden bg-surface print:block print:h-auto print:overflow-visible print:bg-white">
-      <aside className="relative flex h-full w-[17rem] shrink-0 flex-col bg-gradient-to-b from-brand-navy via-brand-navy to-brand-navy-dark text-white shadow-xl shadow-brand-navy/20 print:hidden">
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 animate-fade-in bg-brand-navy-dark/60 backdrop-blur-[2px] lg:hidden print:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        id="portal-sidebar"
+        // Off screen on small devices until opened: keep it out of the tab order then.
+        inert={!isDesktop && !menuOpen}
+        aria-label={isDesktop ? undefined : 'Menu'}
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-[17rem] max-w-[85vw] shrink-0 flex-col bg-gradient-to-b from-brand-navy via-brand-navy to-brand-navy-dark text-white shadow-xl shadow-brand-navy/20 transition-transform duration-300 ease-out lg:relative lg:z-auto lg:max-w-none lg:translate-x-0 print:hidden ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <span
           className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold"
           aria-hidden="true"
         />
-        <Link
-          to="/"
-          className="group flex shrink-0 items-center gap-3 border-b border-white/10 px-5 py-4"
-        >
-          <SchoolLogo
-            className="h-9 w-9 transition-transform duration-300 group-hover:rotate-[-6deg] group-hover:scale-105"
-            onDark
-          />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold">{SITE.name}</div>
-            <div className="text-xs font-medium text-brand-gold">{title}</div>
-          </div>
-        </Link>
+        <div className="flex shrink-0 items-center border-b border-white/10">
+          <Link to="/" className="group flex min-w-0 flex-1 items-center gap-3 px-5 py-4">
+            <SchoolLogo
+              className="h-9 w-9 shrink-0 transition-transform duration-300 group-hover:rotate-[-6deg] group-hover:scale-105"
+              onDark
+            />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-sm font-semibold">{SITE.name}</div>
+              <div className="text-xs font-medium text-brand-gold">{title}</div>
+            </div>
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              menuButtonRef.current?.focus();
+            }}
+            className="mr-3 rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
         <nav
           ref={navRef}
           aria-label={`${title} navigation`}
@@ -229,19 +287,30 @@ export function PortalLayout({
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col print:block">
-        <header className="relative z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-gray-200/80 bg-white/90 px-6 backdrop-blur print:hidden">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="relative z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur sm:h-16 sm:gap-4 sm:px-6 [@media(max-height:500px)]:h-12 print:hidden">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button
+              ref={menuButtonRef}
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-brand-navy transition-colors hover:bg-gray-100 lg:hidden"
+              aria-label="Open menu"
+              aria-expanded={drawerOpen}
+              aria-controls="portal-sidebar"
+            >
+              <Menu className="h-6 w-6" aria-hidden="true" />
+            </button>
             {CurrentIcon && (
               <span
                 key={pathname}
-                className="flex h-9 w-9 shrink-0 animate-scale-in items-center justify-center rounded-xl bg-brand-navy/5 text-brand-navy ring-1 ring-brand-navy/10"
+                className="hidden h-9 w-9 shrink-0 animate-scale-in items-center justify-center rounded-xl bg-brand-navy/5 text-brand-navy ring-1 ring-brand-navy/10 sm:flex"
               >
                 <CurrentIcon className="h-[18px] w-[18px]" aria-hidden="true" />
               </span>
             )}
             <div className="min-w-0 leading-tight">
               <div
-                className="flex items-center gap-1 text-xs text-ink-muted"
+                className="flex items-center gap-1 truncate text-xs text-ink-muted"
                 aria-label="You are here"
               >
                 <span>{title}</span>
@@ -257,14 +326,14 @@ export function PortalLayout({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden text-xs text-ink-muted lg:block">{todayLabel}</span>
+          <div className="flex shrink-0 items-center gap-4">
+            <span className="hidden text-xs text-ink-muted xl:block">{todayLabel}</span>
             <UserMenu />
           </div>
         </header>
         <main
           ref={mainRef}
-          className="portal-main portal-scroll min-h-0 flex-1 overflow-y-auto p-6 print:overflow-visible print:p-0"
+          className="portal-main portal-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 pb-8 sm:p-6 print:overflow-visible print:p-0"
         >
           <div key={pathname} className="animate-fade-up print:animate-none">
             <Outlet />

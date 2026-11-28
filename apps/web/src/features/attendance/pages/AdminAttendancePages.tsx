@@ -1,4 +1,13 @@
 import { ATTENDANCE_LOW_THRESHOLD } from '@school/shared';
+import {
+  CalendarDays,
+  ChevronDown,
+  Filter,
+  GraduationCap,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import {
   Alert,
@@ -17,8 +26,7 @@ import { errorMessages } from '@/lib/api-client';
 import { todayIso } from '@/lib/format';
 import { useDailyReport, useMonthlyReport } from '../attendance-api';
 import { AttendanceSheetPanel } from '../components/AttendanceSheetPanel';
-import { PercentBadge, RegisterPanel } from '../components/AttendanceReports';
-import { ExportButtons } from '@/features/reports/components/ExportButtons';
+import { PercentBadge, RegisterActions, RegisterPanel } from '../components/AttendanceReports';
 
 /** Reads/writes query-string filters so report rows can link straight to a sheet or register. */
 function useParam(key: string, fallback = '') {
@@ -41,10 +49,12 @@ function SectionSelect({
   yearId,
   value,
   onChange,
+  className = 'max-w-[220px]',
 }: {
   yearId: string;
   value: string;
   onChange: (id: string) => void;
+  className?: string;
 }) {
   const sections = useSectionOptions(yearId);
   return (
@@ -52,7 +62,7 @@ function SectionSelect({
       id="att-section"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="max-w-[220px]"
+      className={className}
     >
       <option value="">Select class & section</option>
       {sections.options.map((s) => (
@@ -146,7 +156,7 @@ export function DailyAttendancePage() {
         <EmptyState title="No academic year covers this date" />
       ) : (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
             <Tile
               label="Attendance"
               value={r.totals.percentage === null ? '—' : `${r.totals.percentage}%`}
@@ -318,38 +328,186 @@ export function AttendanceRegisterPage() {
   const { years, yearId, setYearId } = useYearSelection();
   const [sectionId, setSectionId] = useParam('sectionId');
   const [month, setMonth] = useParam('month', todayIso().slice(0, 7));
+  const [filtersOpen, setFiltersOpen] = useState(true);
   return (
-    <div>
-      <PageHeader
-        title="Class attendance register"
-        description="One class, one month: every student's day-by-day attendance."
-        actions={
-          sectionId ? (
-            <ExportButtons report="attendance-register" params={{ sectionId, month }} />
-          ) : undefined
-        }
-      />
-      <Card className="mb-6 flex flex-wrap items-end gap-4 p-4 print:hidden">
-        <Field label="Academic year" htmlFor="reg-year">
-          <YearPicker id="reg-year" yearId={yearId} onChange={setYearId} years={years.data} />
-        </Field>
-        <Field label="Class & section" htmlFor="att-section">
-          <SectionSelect yearId={yearId} value={sectionId} onChange={setSectionId} />
-        </Field>
-        <Field label="Month" htmlFor="reg-month">
-          <Input
-            id="reg-month"
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
+    <div className="mx-auto max-w-6xl">
+      <RegisterHero />
+      {sectionId && <RegisterActions sectionId={sectionId} month={month} />}
+      <Card className="mb-3 sm:mb-5 print:hidden">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          aria-controls="register-details"
+          className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-5 sm:py-4"
+        >
+          <Filter
+            className="h-[18px] w-[18px] shrink-0 text-ink sm:h-5 sm:w-5"
+            aria-hidden="true"
           />
-        </Field>
+          <span className="flex-1 text-[15px] font-semibold text-brand-navy sm:text-base">
+            Select details
+          </span>
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-ink-muted transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+        <div
+          id="register-details"
+          hidden={!filtersOpen}
+          className="grid gap-2.5 px-4 pb-3.5 sm:grid-cols-3 sm:gap-4 sm:px-5 sm:pb-5 [&_input]:py-1.5 [&_select]:py-1.5 sm:[&_input]:py-2 sm:[&_select]:py-2"
+        >
+          <IconField icon={GraduationCap} label="Academic year" htmlFor="reg-year">
+            <YearPicker
+              id="reg-year"
+              yearId={yearId}
+              onChange={setYearId}
+              years={years.data}
+              className="w-full"
+            />
+          </IconField>
+          <IconField icon={Users} label="Class & section" htmlFor="att-section">
+            <SectionSelect
+              yearId={yearId}
+              value={sectionId}
+              onChange={setSectionId}
+              className="w-full"
+            />
+          </IconField>
+          <IconField icon={CalendarDays} label="Month" htmlFor="reg-month">
+            <Input
+              id="reg-month"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            />
+          </IconField>
+        </div>
       </Card>
       {sectionId ? (
-        <RegisterPanel sectionId={sectionId} month={month} />
+        <RegisterPanel
+          sectionId={sectionId}
+          month={month}
+          studentHref={(id) => `/admin/students/${id}`}
+        />
       ) : (
-        <EmptyState title="Choose a class" />
+        <Card>
+          <EmptyState
+            icon={Users}
+            title="Choose a class"
+            description="Pick the class & section and month to see every student's attendance."
+          />
+        </Card>
       )}
     </div>
+  );
+}
+
+/**
+ * A filter field with an icon to its left (register filters). Larger screens show the label above
+ * the field; on phones the icon and the chosen value say what it is, and the label is kept for
+ * screen readers only.
+ */
+function IconField({
+  icon: Icon,
+  label,
+  htmlFor,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 sm:items-end">
+      <Icon className="h-5 w-5 shrink-0 text-ink sm:mb-2.5 sm:h-6 sm:w-6" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <label
+          htmlFor={htmlFor}
+          className="sr-only sm:not-sr-only sm:mb-1 sm:block sm:text-sm sm:font-medium sm:text-ink"
+        >
+          {label}
+        </label>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Page header card with a calendar illustration. */
+function RegisterHero() {
+  return (
+    <div className="relative mb-3 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-100/70 px-4 py-3.5 ring-1 ring-blue-100 sm:mb-4 sm:p-6 print:hidden">
+      <span
+        className="pointer-events-none absolute -bottom-10 right-4 h-36 w-36 rounded-full bg-blue-200/30 blur-2xl"
+        aria-hidden="true"
+      />
+      <div className="relative flex items-center gap-2 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[1.1rem] font-bold leading-tight tracking-tight text-brand-navy min-[400px]:text-[1.2rem] sm:text-3xl">
+            Class attendance register
+          </h1>
+          <span
+            className="mt-1.5 block h-1 w-10 rounded-full bg-gradient-to-r from-brand-gold to-amber-400 sm:mt-2 sm:w-12"
+            aria-hidden="true"
+          />
+          <p className="mt-1.5 text-[13px] leading-snug text-ink-muted sm:mt-3 sm:text-base sm:leading-relaxed">
+            One class, one month: every student&rsquo;s day-by-day attendance.
+          </p>
+        </div>
+        <CalendarIllustration className="h-14 w-14 shrink-0 min-[400px]:h-16 min-[400px]:w-16 sm:h-28 sm:w-28" />
+      </div>
+    </div>
+  );
+}
+
+function CalendarIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="reg-cal-top" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#3b82f6" />
+          <stop offset="1" stopColor="#1d4ed8" />
+        </linearGradient>
+        <filter id="reg-cal-shadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="6" stdDeviation="5" floodColor="#1e3a8a" floodOpacity="0.22" />
+        </filter>
+      </defs>
+      <g filter="url(#reg-cal-shadow)">
+        <rect x="12" y="20" width="96" height="88" rx="16" fill="#fff" />
+        <path d="M12 36a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v8H12z" fill="url(#reg-cal-top)" />
+      </g>
+      <rect x="34" y="10" width="9" height="22" rx="4.5" fill="#1e40af" />
+      <rect x="77" y="10" width="9" height="22" rx="4.5" fill="#1e40af" />
+      {[
+        [28, 54, true],
+        [66, 54, true],
+        [28, 80, false],
+        [66, 80, true],
+      ].map(([x, y, done]) => (
+        <g key={`${x}-${y}`}>
+          <rect
+            x={x as number}
+            y={y as number}
+            width="24"
+            height="20"
+            rx="5"
+            fill={done ? '#e0eaff' : '#e5e7eb'}
+          />
+          {done && (
+            <path
+              d={`M${(x as number) + 6} ${(y as number) + 10.5} l4.5 4.5 l8 -9`}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+        </g>
+      ))}
+    </svg>
   );
 }

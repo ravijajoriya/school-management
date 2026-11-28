@@ -181,7 +181,7 @@ export function ClassRosterPage() {
       ) : (
         <Card className="overflow-x-auto">
           <AttendanceSummary rows={roster.data} />
-          <table className="min-w-full text-sm">
+          <table data-pin-second className="min-w-full text-sm">
             <thead className="bg-surface text-left text-xs uppercase tracking-wide text-ink-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Roll</th>

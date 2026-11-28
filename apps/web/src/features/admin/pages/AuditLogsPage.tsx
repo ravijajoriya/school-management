@@ -57,7 +57,7 @@ export function AuditLogsPage() {
         description="A permanent record of sign-ins and administrative changes. Entries cannot be edited or deleted."
       />
       <Card>
-        <div className="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
+        <div className="filter-bar flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
           <label className="text-xs text-ink-muted">
             Action
             <Input

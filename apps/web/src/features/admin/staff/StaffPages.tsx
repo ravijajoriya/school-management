@@ -90,7 +90,7 @@ export function EmployeesPage() {
         }
       />
       <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
+        <div className="filter-bar flex flex-wrap items-center gap-3 border-b border-gray-200 p-4">
           <Input
             type="search"
             placeholder="Search name, code, designation, phone"
